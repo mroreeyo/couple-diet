@@ -84,8 +84,8 @@
             "dependencies": [
               2
             ],
-            "details": "Include fields such as couple_id, user1_id, user2_id, and relationship_status.",
-            "status": "pending",
+            "details": "Include fields such as couple_id, user1_id, user2_id, and relationship_status.\n<info added on 2025-07-06T13:50:25.532Z>\nTask 2.6 (Couples Table Schema implementation) is complete with the following progress:\n\n✅ **SQL Schema Creation Completed**\n- Created relationship_status ENUM type ('pending', 'active', 'inactive', 'blocked')\n- Created couples table (id, user1_id, user2_id, relationship_status, requested_by, requested_at, accepted_at, created_at, updated_at)\n- Established foreign key relationship with users table\n- Created functional UNIQUE index to prevent duplicates\n- Implemented Row Level Security (RLS) policy (only allows viewing/editing couple data related to the user)\n- Applied trigger for automatic timestamp updates\n\n✅ **Advanced Functionality Functions Implemented**\n- send_couple_request() function: sends couple requests via email\n- accept_couple_request() function: accepts couple requests\n- handle_couple_status_change() trigger function: automatically updates partner_id in users table upon couple status change\n- active_couples view: combines active couple information with user details\n\n✅ **TypeScript Type Definitions Completed**\n- Defined Couple, CoupleInsert, CoupleUpdate interfaces\n- Defined ActiveCouple, CoupleRequestResponse interfaces\n- Defined RelationshipStatus type\n- Added couples table and active_couples view to Database interface\n\n✅ **Comprehensive Test Page Implemented**\n- Database connection test functionality\n- Couple request sending functionality (email-based)\n- Couple request acceptance functionality (ID-based)\n- Couple relationship status change functionality (deactivation, blocking)\n- Active couples view retrieval functionality\n- Full CRUD operation test interface\n\n✅ **Real Testing Successful**\n- Successfully executed SQL schema in Supabase\n- Successfully tested couple request/acceptance with two accounts\n- Confirmed active couple relationship: oreeyo00@gmail.com ↔ oreeyo01@gmail.com\n- Verified automatic partner_id update functionality\n- Confirmed RLS policy functionality\n- Improved UI text readability\n\n**Result:**\nAll couple-related database functionalities are fully operational, and the core feature of the couple connection system in the couple diet app has been completely implemented. All functionalities, including sending couple requests, acceptance, status management, and automatic partner_id updates, have been successfully tested.\n</info added on 2025-07-06T13:50:25.532Z>",
+            "status": "done",
             "testStrategy": "Verify the couples table schema by inserting and retrieving a test couple entry."
           }
         ]
@@ -262,7 +262,7 @@
     ],
     "metadata": {
       "created": "2025-07-06T11:48:37.796Z",
-      "updated": "2025-07-06T13:18:35.923Z",
+      "updated": "2025-07-06T13:50:34.715Z",
       "description": "Tasks for master context"
     }
   }
