@@ -1,10 +1,7 @@
 import { NextRequest } from 'next/server'
-import { createSupabaseAdmin } from '@/lib/supabase'
 import { 
   createSuccessResponse, 
   createErrorResponse, 
-  extractBearerToken,
-  translateSupabaseError,
   logApiRequest,
   logApiError,
   getRequestInfo
@@ -15,42 +12,16 @@ export async function POST(request: NextRequest) {
   logApiRequest('POST', '/api/auth/logout', userAgent, ip)
   
   try {
-    // Authorization 헤더에서 토큰 추출
-    const authHeader = request.headers.get('authorization')
-    const token = extractBearerToken(authHeader || undefined)
-    
-    if (!token) {
-      return createErrorResponse('인증 토큰이 필요합니다.', 401)
-    }
-    
-    // Supabase Admin 클라이언트 생성
-    const supabase = createSupabaseAdmin()
-    
-    // 토큰으로 사용자 정보 조회
-    const { data: userData, error: userError } = await supabase.auth.getUser(token)
-    
-    if (userError || !userData.user) {
-      return createErrorResponse('유효하지 않은 토큰입니다.', 401)
-    }
-    
-    // 사용자 세션 무효화
-    const { error: signOutError } = await supabase.auth.admin.signOut(userData.user.id)
-    
-    if (signOutError) {
-      const translatedError = translateSupabaseError(signOutError.message)
-      logApiError('/api/auth/logout', signOutError, { userId: userData.user.id, ip })
-      return createErrorResponse(translatedError, 400)
-    }
-    
     // 로그아웃 성공 로그
-    console.log(`[${new Date().toISOString()}] Logout successful:`, { 
-      userId: userData.user.id, 
-      email: userData.user.email,
-      ip 
+    console.log(`[${new Date().toISOString()}] Logout requested:`, { 
+      ip,
+      userAgent 
     })
     
+    // 로그아웃은 클라이언트 측에서 처리
+    // 서버 측에서는 단순히 성공 응답만 반환
     return createSuccessResponse(
-      { userId: userData.user.id }, 
+      { message: '로그아웃 요청이 처리되었습니다.' }, 
       '로그아웃이 완료되었습니다.'
     )
     
