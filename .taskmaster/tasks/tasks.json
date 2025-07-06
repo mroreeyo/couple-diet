@@ -9,7 +9,7 @@
         "testStrategy": "Verify repository creation and folder structure by checking the GitHub repository and local file system.",
         "priority": "high",
         "dependencies": [],
-        "status": "in-progress",
+        "status": "done",
         "subtasks": []
       },
       {
@@ -22,8 +22,73 @@
         "dependencies": [
           1
         ],
-        "status": "pending",
-        "subtasks": []
+        "status": "in-progress",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Supabase Project",
+            "description": "Initialize a new Supabase project for the app.",
+            "dependencies": [],
+            "details": "Log in to Supabase, create a new project, and note the API keys and project URL.\n<info added on 2025-07-06T12:02:08.725Z>\nSupabase project creation is complete!\n\nCompleted tasks:\n- New project created in the Supabase dashboard\n- Project name: couple-diet\n- Region: Northeast Asia (Seoul) selected\n- Database password set\n\nTechnical preparations:\n- @supabase/supabase-js client library installed\n- src/lib/supabase.ts configuration file created\n- .env.example environment variable template created\n- Security settings for environment variables confirmed in .gitignore\n\nNext steps:\n- API key information collection and environment variable setup needed\n- Database schema design preparation completed\n</info added on 2025-07-06T12:02:08.725Z>",
+            "status": "done",
+            "testStrategy": "Verify project creation by accessing the Supabase dashboard."
+          },
+          {
+            "id": 2,
+            "title": "Set Up PostgreSQL Database",
+            "description": "Configure the PostgreSQL database with the required schema.",
+            "dependencies": [
+              1
+            ],
+            "details": "Define tables for users, meals, and couples with appropriate fields and relationships.\n<info added on 2025-07-06T12:11:14.195Z>\nSupabase connection test preparation is complete. \n\nCompleted tasks:\n1. Test page created (src/app/test-supabase/page.tsx)\n2. Environment variables verified (all settings completed in .env.local)\n3. Development server confirmed running on port 3001\n\nTest information:\n- Test URL: http://localhost:3001/test-supabase\n- Supabase URL: https://lsvaxxuccaomzygbmacz.supabase.co\n- Environment variables: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY set\n\nNext steps:\n- Users to verify connection status on the test page\n- Proceed to database schema creation step upon successful connection\n</info added on 2025-07-06T12:11:14.195Z>\n<info added on 2025-07-06T12:13:02.854Z>\nSupabase connection test completed successfully!\n\nCompleted tasks:\n1. Supabase client configuration updated (client/server separation)\n2. Environment variable loading confirmed\n3. Database connection test successful\n4. Authentication system access verified\n\nResolved issues:\n- Fixed `supabaseKey is required` error\n- Corrected issue with server-only key being accessed from client\n- Handled server-side processing with `createSupabaseAdmin()` function\n\nTest results:\n- Connection Status: Connected\n- Auth Status: No active session (normal)\n- Database: Connected (tables not created yet) (normal)\n- Environment Variables: All set correctly\n\nReady for the next step: Authentication Features activation preparation is complete.\n</info added on 2025-07-06T12:13:02.854Z>",
+            "status": "done",
+            "testStrategy": "Check the database schema in the Supabase dashboard to ensure tables are correctly set up."
+          },
+          {
+            "id": 3,
+            "title": "Enable Authentication Features",
+            "description": "Activate and configure authentication options in Supabase.",
+            "dependencies": [
+              1
+            ],
+            "details": "Enable email/password authentication and configure any additional providers if needed.",
+            "status": "pending",
+            "testStrategy": "Test authentication by registering and logging in a new user."
+          },
+          {
+            "id": 4,
+            "title": "Implement User Table Schema",
+            "description": "Design and implement the schema for the users table.",
+            "dependencies": [
+              2
+            ],
+            "details": "Include fields such as user_id, email, password_hash, and any other necessary user information.",
+            "status": "pending",
+            "testStrategy": "Verify the users table schema by inserting and retrieving a test user."
+          },
+          {
+            "id": 5,
+            "title": "Implement Meals Table Schema",
+            "description": "Design and implement the schema for the meals table.",
+            "dependencies": [
+              2
+            ],
+            "details": "Include fields such as meal_id, user_id, meal_name, calories, and date.",
+            "status": "pending",
+            "testStrategy": "Verify the meals table schema by inserting and retrieving a test meal entry."
+          },
+          {
+            "id": 6,
+            "title": "Implement Couples Table Schema",
+            "description": "Design and implement the schema for the couples table.",
+            "dependencies": [
+              2
+            ],
+            "details": "Include fields such as couple_id, user1_id, user2_id, and relationship_status.",
+            "status": "pending",
+            "testStrategy": "Verify the couples table schema by inserting and retrieving a test couple entry."
+          }
+        ]
       },
       {
         "id": 3,
@@ -197,7 +262,7 @@
     ],
     "metadata": {
       "created": "2025-07-06T11:48:37.796Z",
-      "updated": "2025-07-06T11:51:59.823Z",
+      "updated": "2025-07-06T12:13:08.549Z",
       "description": "Tasks for master context"
     }
   }
