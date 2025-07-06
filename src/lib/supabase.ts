@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { Database } from '../types/database'
 
 // Supabase configuration
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -10,7 +11,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 // Create Supabase client (for client-side usage)
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
@@ -28,7 +29,7 @@ export const createSupabaseAdmin = () => {
       throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY environment variable')
     }
     
-    return createClient(supabaseUrl, serviceRoleKey, {
+    return createClient<Database>(supabaseUrl, serviceRoleKey, {
       auth: {
         autoRefreshToken: false,
         persistSession: false
@@ -40,4 +41,5 @@ export const createSupabaseAdmin = () => {
 }
 
 // Export types for TypeScript
-export type { User } from '@supabase/supabase-js' 
+export type { User as SupabaseUser } from '@supabase/supabase-js'
+export type { User, UserInsert, UserUpdate } from '../types/database' 
