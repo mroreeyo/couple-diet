@@ -129,8 +129,8 @@
             "dependencies": [
               2
             ],
-            "details": "Design and implement a mechanism to allow users to connect their accounts with their partner's account, suitable for a couple diet app.",
-            "status": "pending",
+            "details": "Design and implement a mechanism to allow users to connect their accounts with their partner's account, suitable for a couple diet app.\n<info added on 2025-07-06T15:31:14.786Z>\nTask 3.3 completed: Couple connection feature implemented successfully! 🎉\n\n✅ **Completed APIs:**\n1. **Send Couple Request** (/api/couples/send-request)\n   - Email-based couple request sending\n   - Prevent self-request\n   - Duplicate request/existing relationship validation\n   - Utilized Supabase send_couple_request() function\n\n2. **Respond to Couple Request** (/api/couples/respond-request)\n   - Handling acceptance/decline of received requests\n   - Permission validation (only the recipient can respond)\n   - Utilized Supabase accept_couple_request() function\n   - Change status to 'inactive' upon decline\n\n3. **Check Couple Status** (/api/couples/status)\n   - Current couple status check: none, pending_sent, pending_received, active\n   - Includes partner information and request details\n   - Retrieve information on active couple relationships\n\n4. **Disconnect Couple Relationship** (/api/couples/disconnect)\n   - Disconnect active couple relationship\n   - Update status in couples table\n   - Remove partner_id from both users\n   - Safely handled in a transactional manner\n\n✅ **Test Page** (/test-couples):\n- Integrated testing for all couple API functionalities\n- Dynamic UI based on status (pending, active, etc.)\n- Token-based authentication system\n- Real-time status refresh\n- User-friendly interface\n- Automatic status update feature\n\n✅ **Security and Validation:**\n- Bearer token-based authentication\n- Email format validation\n- Permission validation (only the requester can respond)\n- Duplicate request prevention\n- Comprehensive error handling\n- Security logging system\n\n✅ **File Structure:**\n- src/app/api/couples/send-request/route.ts\n- src/app/api/couples/respond-request/route.ts\n- src/app/api/couples/status/route.ts\n- src/app/api/couples/disconnect/route.ts\n- src/app/test-couples/page.tsx\n\nAll couple connection features are functioning correctly at a production level and are fully integrated with the database schema implemented in Task 2!\n</info added on 2025-07-06T15:31:14.786Z>",
+            "status": "done",
             "testStrategy": "Simulate user scenarios to test the couple connection feature, ensuring accounts are correctly linked."
           },
           {
@@ -318,7 +318,7 @@
     ],
     "metadata": {
       "created": "2025-07-06T11:48:37.796Z",
-      "updated": "2025-07-06T15:21:29.885Z",
+      "updated": "2025-07-06T15:32:17.577Z",
       "description": "Tasks for master context"
     }
   }
