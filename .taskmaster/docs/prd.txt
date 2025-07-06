@@ -1,0 +1,593 @@
+# Couple Diet Meal Verification Website MVP - PRD (Product Requirements Document)
+
+## 1. Project Overview
+
+### 1.1 Project Goals
+- Develop a mobile-optimized website where couples can verify each other's meals and diet together
+- Provide automated meal management through AI-based calorie measurement
+- Offer simple photo uploads and intuitive UI/UX
+
+### 1.2 Target Users
+- Couples who want to diet together
+- Users interested in meal management
+- Users who want to easily record meals on mobile devices
+
+## 2. Core Feature Requirements
+
+### 2.1 User Authentication System
+- **Login/Registration Features**
+  - Email-based registration
+  - Social login options (Google, Apple, etc.)
+  - Password recovery feature
+  - Couple connection feature (invitation code or email-based)
+
+### 2.2 Meal Verification System
+- **Daily 3-meal verification**
+  - Morning (6 AM - 9 AM): Breakfast
+  - Afternoon (12 PM - 2 PM): Lunch
+  - Evening (6 PM - 9 PM): Dinner
+  - One upload limit per time slot
+  - Alert/warning for uploads outside time slots
+
+- **Photo Upload Features**
+  - Camera capture or gallery selection
+  - Image compression and optimization
+  - Upload progress indicator
+
+### 2.3 AI Calorie Measurement System
+- **Automatic Calorie Calculation**
+  - Analyze uploaded photos
+  - Recognize food types and quantities
+  - Automatically calculate estimated calories
+  - Display calculation results in posts
+
+- **Post Structure**
+  - Photo + calorie information = 1 post
+  - Display daily total calorie sum
+  - Show posting time and meal type
+
+### 2.4 Data Display System
+- **Daily Calorie Summary**
+  - Calculate total calories from 3 meals
+  - Display as "Total: XXX kcal"
+  - Real-time updates
+
+## 3. Screen Layout Requirements
+
+### 3.1 Login/Registration Screens
+- **Login Screen**
+  - Email/password input fields
+  - Login button
+  - Registration link
+  - Social login buttons
+  - Forgot password link
+
+- **Registration Screen**
+  - Email, password, name input fields
+  - Password confirmation field
+  - Terms of service agreement checkbox
+  - Registration button
+  - Couple connection option
+
+### 3.2 Meal Journal Screen (Main Feed)
+- **Infinite Scroll Feed**
+  - Display today's date
+  - Show 3-meal posts (breakfast → lunch → dinner order)
+  - Each post: photo + calorie info + time
+  - Display daily total calorie sum
+  - View past date posts via scrolling
+
+- **Post Upload Feature**
+  - Floating action button (camera icon)
+  - Auto-set meal type based on current time
+  - Photo selection/capture modal
+
+### 3.3 Monthly Calendar Screen
+- **Calendar View**
+  - Display current month calendar
+  - Show meal verification status for each date
+  - Completed dates: checkmark or green
+  - Incomplete dates: X emoji or red
+  - Highlight today's date
+
+- **Detailed Information**
+  - View meal details for clicked date
+  - Monthly statistics (completion rate, average calories, etc.)
+
+### 3.4 Common UI Elements
+- **Navigation Bar**
+  - Home (meal journal)
+  - Calendar
+  - Settings/Profile
+- **Header**
+  - App logo
+  - User information
+  - Notification icon
+
+## 4. Technology Stack
+
+### 4.1 Frontend
+- **Next.js**: React framework for web development
+- **TypeScript**: Type safety
+- **Tailwind CSS**: Utility-first CSS framework
+- **shadcn/ui**: Reusable UI components
+
+### 4.2 State Management
+- **React Query**: Server state management and caching
+- **Jotai**: Atomic state management
+- **Context API**: Global state management
+
+### 4.3 Backend
+- **Supabase**: 
+  - Database (PostgreSQL)
+  - Authentication system
+  - Storage (image files)
+  - Real-time data synchronization
+
+### 4.4 AI Service
+- **Calorie Measurement AI**: External AI API or custom model
+
+## 5. Database Structure
+
+### 5.1 Users Table
+```sql
+- id (UUID, Primary Key)
+- email (String, Unique)
+- name (String)
+- created_at (Timestamp)
+- updated_at (Timestamp)
+- partner_id (UUID, Foreign Key)
+```
+
+### 5.2 Meal Posts Table
+```sql
+- id (UUID, Primary Key)
+- user_id (UUID, Foreign Key)
+- meal_type (Enum: breakfast, lunch, dinner)
+- image_url (String)
+- calories (Integer)
+- meal_date (Date)
+- created_at (Timestamp)
+```
+
+### 5.3 Couples Table
+```sql
+- id (UUID, Primary Key)
+- user1_id (UUID, Foreign Key)
+- user2_id (UUID, Foreign Key)
+- created_at (Timestamp)
+```
+
+## 6. User Flows
+
+### 6.1 New User Flow
+1. Access app → login/registration screen
+2. Complete registration or login
+3. Connect couple (enter invitation code or invite partner)
+4. Enter main feed screen
+5. Start meal photo upload and verification
+
+### 6.2 Daily Usage Flow
+1. Access app → main feed screen
+2. Capture/upload meal photo for current time slot
+3. Confirm AI calorie measurement results
+4. Auto-generate post and update feed
+5. Check partner's meals
+6. Review monthly records in calendar
+
+## 7. Non-Functional Requirements
+
+### 7.1 Performance Requirements
+- Image upload time: Within 5 seconds
+- Page loading time: Within 3 seconds
+- AI calorie measurement time: Within 10 seconds
+
+### 7.2 Security Requirements
+- User authentication and authorization
+- Secure image file uploads
+- Personal data protection compliance
+
+### 7.3 Usability Requirements
+- Mobile-optimized responsive design
+- Intuitive user interface
+- Accessibility guidelines compliance
+
+## 8. API Specifications
+
+### 8.1 Authentication APIs
+```typescript
+// Registration
+POST /api/auth/register
+{
+  email: string;
+  password: string;
+  name: string;
+}
+
+// Login
+POST /api/auth/login
+{
+  email: string;
+  password: string;
+}
+
+// Couple Connection
+POST /api/couples/connect
+{
+  partner_email: string;
+  invitation_code?: string;
+}
+```
+
+### 8.2 Meal APIs
+```typescript
+// Upload Meal Post
+POST /api/meals
+{
+  image: File;
+  meal_type: 'breakfast' | 'lunch' | 'dinner';
+  meal_date: string;
+}
+
+// Get Meal Posts
+GET /api/meals?date=YYYY-MM-DD&user_id=uuid
+
+// Monthly Meal Statistics
+GET /api/meals/monthly?year=2024&month=01
+```
+
+### 8.3 AI Calorie Analysis API
+```typescript
+// Calorie Analysis Request
+POST /api/ai/analyze-calories
+{
+  image_url: string;
+  meal_type: string;
+}
+
+// Response Format
+{
+  calories: number;
+  confidence: number;
+  food_items: Array<{
+    name: string;
+    calories: number;
+    weight: number;
+  }>;
+}
+```
+
+## 9. Component Architecture
+
+### 9.1 Login Screen Components
+```typescript
+// LoginScreen.tsx
+interface LoginScreenProps {
+  onLoginSuccess: (user: User) => void;
+}
+
+components:
+- LoginForm
+- SocialLoginButtons
+- SignUpLink
+- ForgotPasswordLink
+```
+
+### 9.2 Main Feed Screen Components
+```typescript
+// MainFeedScreen.tsx
+interface MainFeedScreenProps {
+  userId: string;
+  partnerId: string;
+}
+
+components:
+- DateHeader
+- MealPostList
+- MealPostCard
+- CalorieSummary
+- UploadButton
+- InfiniteScroll
+```
+
+### 9.3 Calendar Screen Components
+```typescript
+// CalendarScreen.tsx
+interface CalendarScreenProps {
+  userId: string;
+  currentMonth: Date;
+}
+
+components:
+- MonthlyCalendar
+- DateCell
+- CompletionStatus
+- MonthNavigator
+- StatsSummary
+```
+
+## 10. State Management Structure
+
+### 10.1 Jotai Atoms
+```typescript
+// atoms/user.ts
+export const userAtom = atom<User | null>(null);
+export const partnerAtom = atom<User | null>(null);
+export const isLoggedInAtom = atom(false);
+
+// atoms/meals.ts
+export const mealsAtom = atom<MealPost[]>([]);
+export const dailyCaloriesAtom = atom<number>(0);
+export const uploadingAtom = atom<boolean>(false);
+
+// atoms/calendar.ts
+export const selectedDateAtom = atom<Date>(new Date());
+export const monthlyStatsAtom = atom<MonthlyStats | null>(null);
+```
+
+### 10.2 React Query Keys
+```typescript
+// queryKeys.ts
+export const queryKeys = {
+  meals: {
+    all: ['meals'] as const,
+    daily: (date: string) => ['meals', 'daily', date] as const,
+    monthly: (year: number, month: number) => ['meals', 'monthly', year, month] as const,
+  },
+  user: {
+    profile: ['user', 'profile'] as const,
+    partner: ['user', 'partner'] as const,
+  },
+  ai: {
+    calories: (imageUrl: string) => ['ai', 'calories', imageUrl] as const,
+  },
+};
+```
+
+## 11. Development Timeline (MVP)
+
+### Phase 1 (2 weeks): Basic Infrastructure
+- Initial project setup
+- Basic UI component development
+- Supabase setup and database structure creation
+
+### Phase 2 (2 weeks): Core Feature Development
+- User authentication system implementation
+- Image upload feature development
+- AI calorie measurement API integration
+
+### Phase 3 (2 weeks): Screen Development and Feed
+- Main feed screen implementation
+- Infinite scroll feature development
+- Calendar screen implementation
+
+### Phase 4 (1 week): Testing and Optimization
+- Feature testing and bug fixes
+- Performance optimization
+- MVP release preparation
+
+**Total Development Period: 7 weeks**
+
+## 12. Risk Management
+
+### 12.1 Technical Risks
+- **AI Calorie Measurement Accuracy Issues**
+  - Mitigation: Add user correction features, compare various AI models
+  - Backup plan: Provide manual input option
+
+- **Image Upload Failures**
+  - Mitigation: Re-upload feature, network status check
+  - Backup plan: Local caching and retry mechanism
+
+### 12.2 User Experience Risks
+- **Meal Verification Burden**
+  - Mitigation: Simple UI/UX, reminder notifications
+  - Backup plan: Flexible time slot options
+
+- **Decreased Couple Motivation**
+  - Mitigation: Mutual encouragement features, achievement rewards
+  - Backup plan: Individual mode support
+
+## 13. Testing Strategy
+
+### 13.1 Unit Testing
+- **Component Testing**: Jest + React Testing Library
+- **Utility Function Testing**: Jest
+- **API Function Testing**: Jest + MSW (Mock Service Worker)
+
+### 13.2 Integration Testing
+- **User Flow Testing**: Cypress or Playwright
+- **API Integration Testing**: Postman or Jest + Supertest
+
+### 13.3 E2E Testing
+- **Core User Scenarios**:
+  - Registration → Login → Meal Upload → Calorie Check
+  - Calendar Check → Past Meal Review
+  - Couple Connection → Partner Meal Check
+
+## 14. Success Metrics (KPIs)
+
+### 14.1 User Engagement
+- Daily Active Users (DAU)
+- Monthly Active Users (MAU)
+- Meal verification completion rate (based on daily 3 meals)
+
+### 14.2 Service Quality
+- App crash rate < 1%
+- Image upload success rate > 95%
+- User satisfaction > 4.0/5.0
+
+## 15. Future Expansion Possibilities
+
+### 15.1 Additional Features
+- Nutrition analysis features
+- Exercise tracking integration
+- Weight change tracking
+- Community features
+- Goal setting and achievement rewards
+
+### 15.2 Technical Expansion
+- Push notification system
+- Offline mode support
+- Multi-language support
+- Advanced AI analysis features
+
+## 16. Deployment and CI/CD Strategy
+
+### 16.1 Development Environment
+- **Local Development**: Next.js development server
+- **Staging**: Vercel or Netlify
+- **Production**: Vercel or AWS
+
+### 16.2 CI/CD Pipeline
+```yaml
+# .github/workflows/ci-cd.yml
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - name: Install dependencies
+        run: npm ci
+      - name: Run tests
+        run: npm test
+      - name: Run E2E tests
+        run: npm run test:e2e
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Deploy to production
+        run: npm run deploy
+```
+
+## 17. Monitoring and Analytics
+
+### 17.1 Performance Monitoring
+- **Web Vitals Measurement**: Core Web Vitals
+- **Error Tracking**: Sentry or Bugsnag
+- **Performance Analysis**: Google Analytics, Mixpanel
+
+### 17.2 User Behavior Analytics
+- **Event Tracking**:
+  - Login/Registration completion
+  - Meal upload success/failure
+  - Calorie measurement accuracy
+  - App retention time
+
+### 17.3 Business Metrics
+- **User Retention**: 1-day, 7-day, 30-day
+- **Meal Verification Completion Rate**: Based on daily 3 meals
+- **Couple Connection Success Rate**
+
+## 18. Security and Personal Data Protection
+
+### 18.1 Data Security
+- **Encryption**: Password hashing (bcrypt)
+- **Token Management**: JWT token + Refresh Token
+- **Image Security**: Signed URL usage
+- **SQL Injection Prevention**: Parameterized queries
+
+### 18.2 Personal Data Protection
+- **GDPR Compliance**: Data deletion right guarantee
+- **Minimum Information Collection**: Collect only the minimum information necessary for service operation
+- **Data Retention Policy**: Completely delete personal information when withdrawing
+
+## 19. Accessibility (Accessibility)
+
+### 19.1 Web Accessibility Guidelines
+- **WCAG 2.1 AA Compliance**
+- **Keyboard Navigation Support**
+- **Screen Reader Compatibility**
+- **Color Contrast Ratio Compliance**
+
+### 19.2 Mobile Accessibility
+- **Touch Target Size**: Minimum 44px × 44px
+- **Font Size**: Minimum 16px
+- **Voice Input Support**
+
+## 20. Post-Launch Improvement Plan
+
+### 20.1 User Feedback Collection
+- **In-App Feedback System**
+- **Conduct User Interviews**
+- **Analyze App Store Reviews**
+
+### 20.2 Feature Improvement Priority
+1. **AI Calorie Measurement Accuracy Improvement**
+2. **User Experience Optimization**
+3. **Performance Improvement**
+4. **New Feature Addition**
+
+### 20.3 Expansion Plan
+- **Nutrition Analysis Features**
+- **Exercise Tracking Integration**
+- **Social Feature Enhancement**
+- **Personalized Recommendation System**
+
+---
+
+## Appendix: Development Checklist
+
+### A. Pre-Development Preparation
+- [ ] Configure Technology Stack Environment
+- [ ] Create Supabase Project
+- [ ] Select AI Calorie Measurement API
+- [ ] Build Design System
+- [ ] Design Project Structure
+
+### B. Development Stage Checklists
+**Phase 1: Basic Infrastructure**
+- [ ] Initial Project Setup
+- [ ] Basic Routing Configuration
+- [ ] Install shadcn/ui Components
+- [ ] Supabase Connection
+- [ ] Basic State Management Setup
+
+**Phase 2: Core Features**
+- [ ] User Authentication System
+- [ ] Image Upload Feature
+- [ ] AI API Integration
+- [ ] Database Schema Implementation
+
+**Phase 3: Screen Development**
+- [ ] Login/Registration Screen
+- [ ] Main Feed Screen
+- [ ] Calendar Screen
+- [ ] Infinite Scroll Implementation
+
+**Phase 4: Testing and Optimization**
+- [ ] Write Unit Tests
+- [ ] Run E2E Tests
+- [ ] Perform Performance Optimization
+- [ ] Conduct Security Check
+- [ ] Conduct Accessibility Check
+
+### C. Final Check Before Launch
+- [ ] Verify All Features
+- [ ] Test Various Devices
+- [ ] Test Network Environment
+- [ ] Confirm Error Handling
+- [ ] Prepare Personal Information Protection Policy
+- [ ] Prepare App Store Registration
+
+---
+
+**Document Version**: 1.0  
+**Final Update Date**: 2025-07-06  
+**Author**: Product Team  
+**Reviewer**: Development Team, Design Team

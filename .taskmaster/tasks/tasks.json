@@ -1,0 +1,204 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Setup Project Repository",
+        "description": "Initialize the project repository on GitHub and set up the basic folder structure for the Next.js application.",
+        "details": "Create a new repository on GitHub. Clone it locally and set up a Next.js project using 'npx create-next-app'. Organize the folder structure to include components, pages, and styles directories.",
+        "testStrategy": "Verify repository creation and folder structure by checking the GitHub repository and local file system.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "in-progress",
+        "subtasks": []
+      },
+      {
+        "id": 2,
+        "title": "Configure Supabase Project",
+        "description": "Set up a Supabase project for authentication and database management.",
+        "details": "Create a new Supabase project. Set up the PostgreSQL database with the specified schema for users, meals, and couples tables. Enable authentication features.",
+        "testStrategy": "Test database connection and ensure tables are created correctly by querying the database.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "Implement User Authentication System",
+        "description": "Develop the user authentication system including registration, login, and couple connection features.",
+        "details": "Use Supabase's authentication API to implement email-based registration, login, and couple connection features. Create necessary API endpoints for these actions.",
+        "testStrategy": "Perform unit tests on the authentication API endpoints and validate user registration and login flows.",
+        "priority": "high",
+        "dependencies": [
+          2
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 4,
+        "title": "Develop Meal Upload Feature",
+        "description": "Implement the meal upload feature allowing users to upload meal photos with associated metadata.",
+        "details": "Create an API endpoint to handle meal uploads. Integrate image compression and optimization before uploading to Supabase storage. Ensure the meal type is auto-set based on the current time.",
+        "testStrategy": "Test the meal upload functionality by uploading images and verifying that they are stored correctly in Supabase.",
+        "priority": "high",
+        "dependencies": [
+          3
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 5,
+        "title": "Integrate AI Calorie Measurement API",
+        "description": "Connect the application to an external AI service for calorie measurement based on uploaded meal photos.",
+        "details": "Implement the API call to the AI service for calorie analysis. Handle the response to extract calorie information and food items.",
+        "testStrategy": "Test the integration by uploading sample images and verifying that the correct calorie information is returned.",
+        "priority": "high",
+        "dependencies": [
+          4
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 6,
+        "title": "Create Daily Meal Verification Logic",
+        "description": "Implement logic to verify daily meal uploads based on specified time slots.",
+        "details": "Develop a system to restrict uploads to one per time slot (breakfast, lunch, dinner) and alert users if they attempt to upload outside these times.",
+        "testStrategy": "Test the meal verification logic by attempting to upload meals at various times and ensuring restrictions are enforced.",
+        "priority": "medium",
+        "dependencies": [
+          5
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 7,
+        "title": "Design Login and Registration Screens",
+        "description": "Create the UI for login and registration screens using Next.js and Tailwind CSS.",
+        "details": "Develop responsive login and registration forms with input validation. Include social login options and a couple connection feature.",
+        "testStrategy": "Conduct usability testing to ensure the screens are intuitive and functional.",
+        "priority": "medium",
+        "dependencies": [
+          3
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 8,
+        "title": "Implement Main Feed Screen",
+        "description": "Develop the main feed screen to display daily meal posts and calorie summaries.",
+        "details": "Create a feed that displays uploaded meals in chronological order with calorie information. Implement infinite scroll for past meal viewing.",
+        "testStrategy": "Test the feed functionality by uploading multiple meals and verifying they appear correctly in the feed.",
+        "priority": "medium",
+        "dependencies": [
+          4
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 9,
+        "title": "Create Monthly Calendar Screen",
+        "description": "Develop a calendar screen to display meal verification status for each date.",
+        "details": "Implement a calendar view that highlights completed and incomplete meal verification dates. Allow users to click on dates for detailed meal information.",
+        "testStrategy": "Test the calendar functionality by verifying meal statuses and ensuring correct display of statistics.",
+        "priority": "medium",
+        "dependencies": [
+          8
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 10,
+        "title": "Implement State Management with Jotai",
+        "description": "Set up state management using Jotai for managing user and meal states.",
+        "details": "Create Jotai atoms for user information, meals, and daily calorie totals. Integrate these into the components for state management.",
+        "testStrategy": "Test state management by ensuring that updates to atoms reflect correctly in the UI.",
+        "priority": "medium",
+        "dependencies": [
+          3
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 11,
+        "title": "Set Up API Testing with Jest and MSW",
+        "description": "Configure testing environment for API endpoints using Jest and Mock Service Worker (MSW).",
+        "details": "Set up Jest for unit testing and MSW for mocking API requests. Write tests for authentication and meal upload APIs.",
+        "testStrategy": "Run unit tests to ensure API endpoints function correctly and handle edge cases.",
+        "priority": "medium",
+        "dependencies": [
+          3
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 12,
+        "title": "Conduct Performance Optimization",
+        "description": "Optimize image upload and page loading times to meet performance requirements.",
+        "details": "Implement lazy loading for images and optimize API calls. Use tools like Lighthouse to analyze performance metrics.",
+        "testStrategy": "Measure performance before and after optimizations using Lighthouse and ensure targets are met.",
+        "priority": "medium",
+        "dependencies": [
+          4
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 13,
+        "title": "Implement Security Measures",
+        "description": "Ensure the application adheres to security requirements including data protection and secure uploads.",
+        "details": "Implement JWT for authentication, secure image uploads, and parameterized queries to prevent SQL injection.",
+        "testStrategy": "Conduct security testing to ensure vulnerabilities are addressed and data protection measures are effective.",
+        "priority": "high",
+        "dependencies": [
+          3
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 14,
+        "title": "Perform Accessibility Checks",
+        "description": "Ensure the application meets accessibility standards as per WCAG 2.1 guidelines.",
+        "details": "Review UI components for accessibility compliance, including keyboard navigation and screen reader support.",
+        "testStrategy": "Use accessibility testing tools to identify and fix any compliance issues.",
+        "priority": "medium",
+        "dependencies": [
+          7
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 15,
+        "title": "Prepare for Deployment and CI/CD Setup",
+        "description": "Set up CI/CD pipeline for automated testing and deployment to production.",
+        "details": "Configure GitHub Actions for CI/CD to automate testing and deployment to Vercel or AWS.",
+        "testStrategy": "Test the CI/CD pipeline by pushing changes and verifying that tests run and deployment occurs successfully.",
+        "priority": "high",
+        "dependencies": [
+          12
+        ],
+        "status": "pending",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2025-07-06T11:48:37.796Z",
+      "updated": "2025-07-06T11:51:59.823Z",
+      "description": "Tasks for master context"
+    }
+  }
+}
