@@ -73,8 +73,8 @@
             "dependencies": [
               2
             ],
-            "details": "Include fields such as meal_id, user_id, meal_name, calories, and date.",
-            "status": "pending",
+            "details": "Include fields such as meal_id, user_id, meal_name, calories, and date.\n<info added on 2025-07-06T13:17:18.009Z>\nTask 2.5 (Meals Table Schema Implementation) is complete:\n\n✅ **SQL Schema Creation Completed**\n- Created meals table (id, user_id, meal_name, calories, meal_type, photo_url, description, meal_date, created_at, updated_at)\n- Created ENUM type for meal_type ('breakfast', 'lunch', 'dinner', 'snack')\n- Established foreign key relationship with users table\n- Created composite index for performance optimization\n- Implemented Row Level Security (RLS) policy (allowing self and partner meal access)\n- Applied trigger for automatic timestamp updates\n\n✅ **Daily Summary View Created**\n- Implemented daily_meal_summary view\n- Automatically calculates total meals, calorie sum, and count by meal type per date\n- Ensured security with RLS policy\n\n✅ **TypeScript Type Definitions Completed**\n- Defined Meal, MealInsert, MealUpdate interfaces\n- Defined MealType enum\n- Defined DailyMealSummary interface\n- Added meals table and daily_meal_summary view to Database interface\n\n✅ **Comprehensive Testing Page Implemented**\n- Tested all CRUD operations (Create, Read, Update, Delete)\n- Tested daily summary view functionality\n- Supported various meal types (breakfast, lunch, dinner, snack)\n- Tested all fields including photo URL, calories, and description\n\n✅ **Successful Real Testing**\n- Executed SQL schema in Supabase\n- Confirmed all CRUD operations function correctly\n- Verified daily summary feature operates as expected\n- Confirmed RLS policy functions correctly\n- Users confirmed \"all success!\"\n\n**Outcome:**\nAll meal-related database functionalities are fully operational, and the core feature of meal logging and calorie tracking for the couples diet app has been completely implemented.\n</info added on 2025-07-06T13:17:18.009Z>",
+            "status": "done",
             "testStrategy": "Verify the meals table schema by inserting and retrieving a test meal entry."
           },
           {
@@ -262,7 +262,7 @@
     ],
     "metadata": {
       "created": "2025-07-06T11:48:37.796Z",
-      "updated": "2025-07-06T13:09:17.088Z",
+      "updated": "2025-07-06T13:18:35.923Z",
       "description": "Tasks for master context"
     }
   }

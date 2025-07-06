@@ -42,4 +42,13 @@ export const createSupabaseAdmin = () => {
 
 // Export types for TypeScript
 export type { User as SupabaseUser } from '@supabase/supabase-js'
-export type { User, UserInsert, UserUpdate } from '../types/database' 
+export type { 
+  User, 
+  UserInsert, 
+  UserUpdate, 
+  Meal, 
+  MealInsert, 
+  MealUpdate, 
+  MealType, 
+  DailyMealSummary 
+} from '../types/database' 
