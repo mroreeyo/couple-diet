@@ -118,8 +118,8 @@
             "dependencies": [
               1
             ],
-            "details": "Implement Next.js API routes to handle registration and login requests, ensuring they interact correctly with Supabase.",
-            "status": "pending",
+            "details": "Implement Next.js API routes to handle registration and login requests, ensuring they interact correctly with Supabase.\n<info added on 2025-07-06T15:05:25.256Z>\nTask 3.2 \"Develop Registration and Login Endpoints\" is complete!\n\nImplemented features include:\n\n1. API utility system (src/lib/api-utils.ts)\n   - API response handling functions (success/failure response generation)\n   - Input validation functions (email, password validation)\n   - Korean translation for Supabase error messages\n   - Logging system (API request/error logging)\n   - Security utilities (JWT token extraction and validation)\n\n2. Registration endpoint (POST /api/auth/signup)\n   - User creation via Supabase Admin API\n   - Email format and password strength validation\n   - Automatic user profile creation confirmation\n   - Detailed error handling and logging\n\n3. Login endpoint (POST /api/auth/login)\n   - Email/password authentication via Supabase\n   - Access token and refresh token return\n   - User profile information included\n   - Security logging system\n\n4. Logout endpoint (POST /api/auth/logout)\n   - Session invalidation via Supabase Admin API\n   - Bearer token validation and handling\n   - Security logging system\n\n5. User information retrieval endpoint (GET /api/auth/me)\n   - Returns currently logged-in user information\n   - Includes user profile and partner information\n   - Bearer token-based authentication\n\n6. API testing page (src/app/test-api-endpoints/page.tsx)\n   - Comprehensive testing functionality for all API endpoints\n   - Intuitive testing UI provided\n   - Detailed API response results displayed\n\nTechnical features:\n- Utilized Next.js 15+ App Router's Route Handlers\n- Ensured type safety through TypeScript\n- Appropriate use of Supabase Admin API and client API\n- Comprehensive error handling and logging system\n- Security-focused token management and session handling\n\nUsage instructions:\n1. Environment variables need to be set (e.g., SUPABASE_SERVICE_ROLE_KEY)\n2. API testing available at /test-api-endpoints\n3. Sequence: Signup → Login → Retrieve My Info → Logout\n\nRun the development server with: npm run dev and access http://localhost:3000/test-api-endpoints\n</info added on 2025-07-06T15:05:25.256Z>",
+            "status": "done",
             "testStrategy": "Test endpoints with various input scenarios to ensure correct user registration and login functionality."
           },
           {
@@ -318,7 +318,7 @@
     ],
     "metadata": {
       "created": "2025-07-06T11:48:37.796Z",
-      "updated": "2025-07-06T14:49:14.748Z",
+      "updated": "2025-07-06T15:05:48.310Z",
       "description": "Tasks for master context"
     }
   }
