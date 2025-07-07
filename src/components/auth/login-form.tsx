@@ -4,13 +4,22 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/auth-context'
 import { isValidEmail, LoginAttemptLimiter, translateAuthError } from '@/lib/auth-utils'
+import { FormInput } from './form-input'
+import { FormButton } from './form-button'
+import { Alert } from './alert'
+import { cn } from '@/lib/utils'
 
 interface LoginFormProps {
   onSuccess?: () => void
   redirectTo?: string
+  className?: string
 }
 
-export function LoginForm({ onSuccess, redirectTo = '/dashboard' }: LoginFormProps) {
+export function LoginForm({ 
+  onSuccess, 
+  redirectTo = '/dashboard',
+  className 
+}: LoginFormProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -126,92 +135,83 @@ export function LoginForm({ onSuccess, redirectTo = '/dashboard' }: LoginFormPro
   }
 
   return (
-    <div className="w-full max-w-md mx-auto">
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
-          로그인
-        </h2>
+    <div className={cn("w-full max-w-md mx-auto", className)}>
+      <div className="bg-white rounded-lg shadow-md p-6 space-y-6">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            로그인
+          </h2>
+          <p className="text-gray-600">
+            계정에 로그인하여 시작하세요
+          </p>
+        </div>
 
         {isLockedOut && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
-            <p className="text-sm text-red-700">
-              로그인 시도 횟수를 초과했습니다. {formatTime(lockoutTime)} 후 다시 시도해주세요.
-            </p>
-          </div>
+          <Alert 
+            type="warning"
+            title="로그인 제한"
+            message={`로그인 시도 횟수를 초과했습니다. ${formatTime(lockoutTime)} 후 다시 시도해주세요.`}
+          />
         )}
-
+        
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-              이메일
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onBlur={() => validateEmail(email)}
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${
-                emailError ? 'border-red-300' : 'border-gray-300'
-              }`}
-              placeholder="your@email.com"
-              disabled={loading}
-            />
-            {emailError && (
-              <p className="mt-1 text-sm text-red-600">{emailError}</p>
-            )}
-          </div>
+          <FormInput
+            id="email"
+            type="email"
+            label="이메일"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onBlur={() => validateEmail(email)}
+            error={emailError}
+            placeholder="your@email.com"
+            disabled={loading}
+            autoComplete="email"
+            required
+          />
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-              비밀번호
-            </label>
-            <div className="relative">
-              <input
-                id="password"
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 pr-10"
-                placeholder="••••••••"
-                disabled={loading}
-              />
-              <button
-                type="button"
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? '🙈' : '👁️'}
-              </button>
-            </div>
-          </div>
+          <FormInput
+            id="password"
+            label="비밀번호"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            disabled={loading}
+            isPassword
+            showPassword={showPassword}
+            onTogglePassword={() => setShowPassword(!showPassword)}
+            autoComplete="current-password"
+            required
+          />
 
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-sm text-red-700">{error}</p>
-            </div>
+            <Alert 
+              type="error"
+              message={error}
+              onClose={() => setError('')}
+            />
           )}
 
-          <button
-            type="submit"
-            disabled={loading || isLockedOut}
-            className={`w-full py-2 px-4 rounded-md font-medium transition-colors ${
-              loading || isLockedOut
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
-            }`}
+          <FormButton
+            type="submit" 
+            loading={loading}
+            loadingText="로그인 중..."
+            disabled={isLockedOut}
+            fullWidth
           >
-            {loading ? '로그인 중...' : '로그인'}
-          </button>
+            로그인
+          </FormButton>
         </form>
 
-        <div className="mt-6 text-center">
-          <button 
-            onClick={() => router.push('/forgot-password')}
-            className="text-sm text-blue-600 hover:text-blue-800"
-          >
-            비밀번호를 잊으셨나요?
-          </button>
+        <div className="text-center">
+          <p className="text-sm text-gray-600">
+            계정이 없으신가요?{' '}
+            <button
+              onClick={() => router.push('/signup')}
+              className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
+            >
+              회원가입
+            </button>
+          </p>
         </div>
       </div>
     </div>

@@ -4,13 +4,22 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/auth-context'
 import { isValidEmail, validatePassword, translateAuthError } from '@/lib/auth-utils'
+import { FormInput } from './form-input'
+import { FormButton } from './form-button'
+import { Alert } from './alert'
+import { cn } from '@/lib/utils'
 
 interface SignupFormProps {
   onSuccess?: () => void
   redirectTo?: string
+  className?: string
 }
 
-export function SignupForm({ onSuccess, redirectTo = '/dashboard' }: SignupFormProps) {
+export function SignupForm({ 
+  onSuccess, 
+  redirectTo = '/dashboard',
+  className 
+}: SignupFormProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -113,21 +122,29 @@ export function SignupForm({ onSuccess, redirectTo = '/dashboard' }: SignupFormP
     return '약함'
   }
 
+  // 성공 상태 UI
   if (successMessage) {
     return (
-      <div className="w-full max-w-md mx-auto">
+      <div className={cn("w-full max-w-md mx-auto", className)}>
         <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="text-center">
-            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
-              <span className="text-2xl">✅</span>
+          <div className="text-center space-y-4">
+            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100">
+              <span className="text-3xl">✅</span>
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
-              회원가입 완료!
-            </h2>
-            <p className="text-gray-600 mb-6">
-              {successMessage}
-            </p>
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                회원가입 완료!
+              </h2>
+              <p className="text-gray-600">
+                {successMessage}
+              </p>
+            </div>
+            <div className="pt-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="text-sm text-gray-500 mt-2">
+                로그인 페이지로 이동 중...
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -135,139 +152,123 @@ export function SignupForm({ onSuccess, redirectTo = '/dashboard' }: SignupFormP
   }
 
   return (
-    <div className="w-full max-w-md mx-auto">
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
-          회원가입
-        </h2>
-
+    <div className={cn("w-full max-w-md mx-auto", className)}>
+      <div className="bg-white rounded-lg shadow-md p-6 space-y-6">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            회원가입
+          </h2>
+          <p className="text-gray-600">
+            새 계정을 만들어 시작하세요
+          </p>
+        </div>
+        
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-              이메일
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onBlur={() => validateEmail(email)}
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${
-                emailError ? 'border-red-300' : 'border-gray-300'
-              }`}
-              placeholder="your@email.com"
-              disabled={loading}
-            />
-            {emailError && (
-              <p className="mt-1 text-sm text-red-600">{emailError}</p>
-            )}
-          </div>
+          <FormInput
+            id="email"
+            type="email"
+            label="이메일"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onBlur={() => validateEmail(email)}
+            error={emailError}
+            placeholder="your@email.com"
+            disabled={loading}
+            autoComplete="email"
+            required
+          />
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-              비밀번호
-            </label>
-            <div className="relative">
-              <input
-                id="password"
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value)
-                  if (e.target.value) {
-                    validatePasswordStrength(e.target.value)
-                  }
-                }}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 pr-10 ${
-                  passwordErrors.length > 0 && password.length > 0 ? 'border-red-300' : 'border-gray-300'
-                }`}
-                placeholder="••••••••"
-                disabled={loading}
-              />
-              <button
-                type="button"
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? '🙈' : '👁️'}
-              </button>
-            </div>
-            
-            {password.length > 0 && (
-              <div className="mt-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">비밀번호 강도:</span>
-                  <span className={`text-sm font-medium ${getPasswordStrengthColor()}`}>
-                    {getPasswordStrengthText()}
-                  </span>
-                </div>
-                {passwordErrors.length > 0 && (
-                  <ul className="mt-1 text-sm text-red-600 list-disc list-inside">
-                    {passwordErrors.map((error, index) => (
-                      <li key={index}>{error}</li>
-                    ))}
-                  </ul>
-                )}
+          <FormInput
+            id="password"
+            label="비밀번호"
+            value={password}
+            onChange={(e) => {
+              setPassword(e.target.value)
+              if (e.target.value) {
+                validatePasswordStrength(e.target.value)
+              }
+            }}
+            placeholder="••••••••"
+            disabled={loading}
+            isPassword
+            showPassword={showPassword}
+            onTogglePassword={() => setShowPassword(!showPassword)}
+            error={passwordErrors.length > 0 ? passwordErrors[0] : ''}
+            autoComplete="new-password"
+            required
+          />
+
+          {/* 비밀번호 강도 표시 */}
+          {password.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">비밀번호 강도:</span>
+                <span className={`text-sm font-medium ${getPasswordStrengthColor()}`}>
+                  {getPasswordStrengthText()}
+                </span>
               </div>
-            )}
-          </div>
-
-          <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
-              비밀번호 확인
-            </label>
-            <div className="relative">
-              <input
-                id="confirmPassword"
-                type={showConfirmPassword ? 'text' : 'password'}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                onBlur={() => validatePasswordConfirmation(password, confirmPassword)}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 pr-10 ${
-                  confirmPasswordError ? 'border-red-300' : 'border-gray-300'
-                }`}
-                placeholder="••••••••"
-                disabled={loading}
-              />
-              <button
-                type="button"
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              >
-                {showConfirmPassword ? '🙈' : '👁️'}
-              </button>
-            </div>
-            {confirmPasswordError && (
-              <p className="mt-1 text-sm text-red-600">{confirmPasswordError}</p>
-            )}
-          </div>
-
-          {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-sm text-red-700">{error}</p>
+          
+              {passwordErrors.length > 0 && (
+                <div className="space-y-1">
+                  {passwordErrors.map((error, index) => (
+                    <p key={index} className="text-xs text-red-600 flex items-center gap-1">
+                      <span>•</span>
+                      {error}
+                    </p>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={loading || emailError !== '' || passwordErrors.length > 0 || confirmPasswordError !== ''}
-            className={`w-full py-2 px-4 rounded-md font-medium transition-colors ${
-              loading || emailError !== '' || passwordErrors.length > 0 || confirmPasswordError !== ''
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
-            }`}
+          <FormInput
+            id="confirmPassword"
+            label="비밀번호 확인"
+            value={confirmPassword}
+            onChange={(e) => {
+              setConfirmPassword(e.target.value)
+              if (e.target.value) {
+                validatePasswordConfirmation(password, e.target.value)
+              }
+            }}
+            placeholder="••••••••"
+            disabled={loading}
+            isPassword
+            showPassword={showConfirmPassword}
+            onTogglePassword={() => setShowConfirmPassword(!showConfirmPassword)}
+            error={confirmPasswordError}
+            autoComplete="new-password"
+            required
+          />
+
+          {error && (
+            <Alert 
+              type="error"
+              message={error}
+              onClose={() => setError('')}
+            />
+          )}
+
+          <FormButton
+            type="submit" 
+            loading={loading}
+            loadingText="회원가입 중..."
+            fullWidth
           >
-            {loading ? '회원가입 중...' : '회원가입'}
-          </button>
+            계정 만들기
+          </FormButton>
         </form>
 
-        <div className="mt-6 text-center">
-          <button 
-            onClick={() => router.push('/login')}
-            className="text-sm text-blue-600 hover:text-blue-800"
-          >
-            이미 계정이 있으신가요? 로그인
-          </button>
+        <div className="text-center">
+          <p className="text-sm text-gray-600">
+            이미 계정이 있으신가요?{' '}
+            <button
+              onClick={() => router.push('/login')}
+              className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
+            >
+              로그인
+            </button>
+          </p>
         </div>
       </div>
     </div>
