@@ -10,22 +10,27 @@ import {
   validateEnvironmentVariables 
 } from '@/lib/security';
 import { extractBearerToken, getUserFromToken } from '@/lib/auth-utils';
-import { supabase } from '@/lib/supabase';
 import { 
   processImageForAI,
   validateImageFormat,
   validateImageSize,
   validateImageIntegrity,
-  cacheManager,
   getMemoryUsage,
   calculateCompressionRatio,
   ImageProcessingResult
 } from '@/lib/image-processor';
 import { 
+  initializeStorageBucket,
+  uploadProcessedImages,
+  checkStorageConnection
+} from '@/lib/storage';
+import { 
+  saveMealAnalysis
+} from '@/lib/meals-history';
+import { 
   FoodAnalysisResponse, 
   FoodAnalysisResult, 
-  FoodAnalysisConfig,
-  MealAnalysisRecord 
+  FoodAnalysisConfig
 } from '@/types/food-analysis';
 
 // 설정
@@ -41,84 +46,269 @@ const CONFIG: FoodAnalysisConfig = {
 function initializeGeminiClient(): GoogleGenerativeAI {
   const apiKey = process.env.GOOGLE_API_KEY;
   if (!apiKey) {
-    throw new Error('GOOGLE_API_KEY environment variable is not set');
+    throw new Error('Google API Key가 설정되지 않았습니다.');
   }
   return new GoogleGenerativeAI(apiKey);
 }
 
-// 한국어 최적화 프롬프트
+// 한국어 최적화 음식 분석 프롬프트
 const KOREAN_FOOD_ANALYSIS_PROMPT = `
-당신은 한국 음식 전문가입니다. 업로드된 음식 이미지를 분석하여 다음 정보를 JSON 형식으로 제공해주세요:
+당신은 한국 음식 전문 영양 분석가입니다. 제공된 음식 이미지를 분석하여 정확한 칼로리 정보를 제공해주세요.
 
-1. 이미지에서 식별할 수 있는 모든 음식을 나열하세요
-2. 각 음식의 대략적인 칼로리를 계산하세요
-3. 각 음식의 분량을 추정하세요 (예: 1인분, 100g, 1개 등)
-4. 각 식별에 대한 신뢰도를 0-1 사이의 값으로 표시하세요
-5. 전체 식사의 타입을 추정하세요 (아침, 점심, 저녁, 간식)
+분석 요구사항:
+1. 이미지에서 식별 가능한 모든 음식을 찾아주세요
+2. 각 음식의 대략적인 양(그릇, 개, 컵 등)을 추정해주세요
+3. 음식별 칼로리를 계산해주세요
+4. 전체 식사의 칼로리 총합을 구해주세요
+5. 식사 종류(아침/점심/저녁/간식)를 추정해주세요
 
-다음과 같은 JSON 형식으로 정확히 응답해주세요:
+응답은 반드시 다음 JSON 형식으로만 제공해주세요:
+
 {
   "foods": [
     {
-      "name": "음식 이름",
-      "calories": 칼로리_숫자,
-      "amount": "분량 설명",
-      "confidence": 신뢰도_0에서1사이
+      "name": "음식이름",
+      "calories": 칼로리숫자,
+      "amount": "분량설명",
+      "confidence": 0.0~1.0 신뢰도
     }
   ],
-  "total_calories": 총칼로리_숫자,
+  "total_calories": 총칼로리,
   "meal_type": "breakfast|lunch|dinner|snack",
-  "analysis_confidence": 전체분석신뢰도_0에서1사이
+  "analysis_confidence": 전체분석신뢰도(0.0~1.0),
+  "analyzed_at": "${new Date().toISOString()}"
 }
 
 주의사항:
-- 한국 음식의 특성을 고려하여 정확한 칼로리를 계산하세요
-- 반찬류도 포함하여 분석하세요
-- 불확실한 경우 confidence 값을 낮게 설정하세요
-- 음식이 명확하지 않은 경우 "확인불가"로 표시하고 confidence를 0.3 이하로 설정하세요
+- 한국 음식 기준으로 분석해주세요
+- 칼로리는 일반적인 한국인 기준으로 계산해주세요
+- 불확실한 음식은 낮은 신뢰도로 표시해주세요
+- JSON 형식 외의 다른 텍스트는 포함하지 마세요
 `;
 
-/**
- * 파일에서 이미지 추출
- */
-async function extractImageFromFormData(request: NextRequest): Promise<Buffer> {
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  const startTime = Date.now();
+  const clientIP = getClientIP(request);
+  const userAgent = getUserAgent(request);
+  let user = null;
+
   try {
-    const formData = await request.formData();
-    const file = formData.get('image') as File;
+    // 1. 환경 변수 검증
+    const envValidation = validateEnvironmentVariables();
+    if (!envValidation.isValid) {
+      throw new Error(`환경 변수 누락: ${envValidation.errors.join(', ')}`);
+    }
+
+    // 2. Rate limiting 체크
+    const rateLimitResult = await checkRateLimit(rateLimiters.general, clientIP);
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.',
+          retryAfter: rateLimitResult.retryAfter 
+        },
+        { 
+          status: 429,
+          headers: {
+            'X-RateLimit-Remaining': '0',
+            'Retry-After': Math.ceil((rateLimitResult.retryAfter || 60000) / 1000).toString()
+          }
+        }
+      );
+    }
+
+    // 3. 인증 토큰 검증
+    const authHeader = request.headers.get('authorization');
+    const token = extractBearerToken(authHeader);
     
-    if (!file) {
-      throw new Error('No image file found in form data');
+    if (!token) {
+      return NextResponse.json(
+        { success: false, error: '인증 토큰이 필요합니다.' },
+        { status: 401 }
+      );
     }
 
-    if (!file.type.startsWith('image/')) {
-      throw new Error('Invalid file type. Only image files are allowed.');
+    user = await getUserFromToken(token);
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: '유효하지 않은 토큰입니다.' },
+        { status: 401 }
+      );
     }
 
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    // 기본 파일 크기 검증
-    if (!validateImageSize(buffer, CONFIG.maxFileSize)) {
-      throw new Error(`File size exceeds maximum limit of ${CONFIG.maxFileSize / (1024 * 1024)}MB`);
+    // 4. Storage 연결 확인 및 초기화
+    const storageConnection = await checkStorageConnection();
+    if (!storageConnection.success) {
+      console.log('Storage bucket이 없어서 초기화 시도...');
+      const initResult = await initializeStorageBucket();
+      if (!initResult.success) {
+        console.error('Storage 초기화 실패:', initResult.error);
+        // Storage 실패는 로그만 남기고 계속 진행 (분석은 가능)
+      }
     }
 
-    // 파일 형식 검증
-    if (!validateImageFormat(buffer, CONFIG.allowedFormats)) {
-      throw new Error(`Unsupported image format. Allowed formats: ${CONFIG.allowedFormats.join(', ')}`);
+    // 5. FormData 파싱
+    const formData = await request.formData();
+    const imageFile = formData.get('image') as File;
+    const saveToHistory = formData.get('save_to_history') === 'true';
+    const saveImages = formData.get('save_images') === 'true'; // 이미지 저장 여부 (선택사항)
+
+    if (!imageFile) {
+      return NextResponse.json(
+        { success: false, error: '이미지 파일이 필요합니다.' },
+        { status: 400 }
+      );
     }
 
-    // 이미지 무결성 검증
-    const isValid = await validateImageIntegrity(buffer);
-    if (!isValid) {
-      throw new Error('Corrupted or invalid image file');
+    // 6. 이미지 Buffer 변환
+    const imageBuffer = Buffer.from(await imageFile.arrayBuffer());
+
+    // 7. 이미지 기본 검증
+    const sizeValidation = validateImageSize(imageBuffer);
+    if (!sizeValidation) {
+      return NextResponse.json(
+        { success: false, error: '파일 크기가 너무 큽니다. 10MB 이하의 파일을 업로드해주세요.' },
+        { status: 400 }
+      );
     }
 
-    return buffer;
+    const formatValidation = validateImageFormat(imageBuffer);
+    if (!formatValidation) {
+      return NextResponse.json(
+        { success: false, error: '지원하지 않는 이미지 형식입니다. JPEG, PNG, WebP 파일을 사용해주세요.' },
+        { status: 400 }
+      );
+    }
+
+    // 8. 이미지 무결성 검증
+    const integrityValidation = await validateImageIntegrity(imageBuffer);
+    if (!integrityValidation) {
+      return NextResponse.json(
+        { success: false, error: '손상된 이미지 파일입니다. 다른 파일을 사용해주세요.' },
+        { status: 400 }
+      );
+    }
+
+    // 9. 이미지 해시 계산 (중복 검사용)
+    const imageHash = crypto.createHash('md5').update(imageBuffer).digest('hex');
+    
+    // 10. 이미지 처리 (AI 분석용 + 저장용)
+    const memoryBefore = getMemoryUsage();
+    const processedImages = await processImageForAI(imageBuffer);
+    const memoryAfter = getMemoryUsage();
+    const compressionRatio = calculateCompressionRatio(imageBuffer.length, processedImages.analysis.size);
+
+    logSecurityEvent('IMAGE_PROCESSED', {
+      userId: user.id,
+      imageHash,
+      originalSize: imageBuffer.length,
+      compressionRatio,
+      memoryUsage: memoryAfter.heapUsed - memoryBefore.heapUsed,
+      clientIP,
+      userAgent
+    });
+
+    // 11. Google Gemini API 호출
+    const analysisResult = await analyzeImageWithGemini(processedImages);
+
+    // 12. 이미지 저장 (선택사항)
+    let uploadResult;
+    if (saveImages) {
+      try {
+        uploadResult = await uploadProcessedImages(processedImages, user.id);
+        if (!uploadResult.success) {
+          console.error('Image upload failed:', uploadResult.error);
+          // 업로드 실패는 로그만 남기고 계속 진행
+        }
+      } catch (uploadError) {
+        console.error('Image upload error:', uploadError);
+        // 업로드 에러는 무시하고 계속 진행
+      }
+    }
+
+    // 13. 분석 결과 히스토리 저장 (선택사항)
+    let mealId;
+    if (saveToHistory) {
+      try {
+        const saveResult = await saveMealAnalysis(
+          user.id, 
+          analysisResult, 
+          uploadResult, 
+          imageHash
+        );
+        if (saveResult.success) {
+          mealId = saveResult.mealId;
+        } else {
+          console.error('Failed to save meal analysis:', saveResult.error);
+        }
+      } catch (saveError) {
+        console.error('Save meal analysis error:', saveError);
+        // 저장 실패는 로그만 남기고 계속 진행
+      }
+    }
+
+    // 14. 성공 로깅
+    logSecurityEvent('MEAL_ANALYSIS_SUCCESS', {
+      userId: user.id,
+      imageHash,
+      mealId,
+      totalCalories: analysisResult.total_calories,
+      analysisConfidence: analysisResult.analysis_confidence,
+      processingTime: Date.now() - startTime,
+      savedToHistory: saveToHistory,
+      savedImages: saveImages,
+      clientIP,
+      userAgent
+    });
+
+    // 15. 응답 반환
+    const response: FoodAnalysisResponse = {
+      success: true,
+      data: analysisResult,
+      message: '음식 분석이 완료되었습니다.'
+    };
+
+    return NextResponse.json(response, {
+      status: 200,
+      headers: {
+        'X-Processing-Time': (Date.now() - startTime).toString(),
+        'X-Analysis-Confidence': analysisResult.analysis_confidence.toString(),
+        'X-Total-Calories': analysisResult.total_calories.toString(),
+        ...(mealId && { 'X-Meal-ID': mealId }),
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      }
+    });
+
   } catch (error) {
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error('Failed to extract image from form data');
+    const processingTime = Date.now() - startTime;
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    // 에러 로깅
+    logSecurityEvent('MEAL_ANALYSIS_ERROR', {
+      userId: user?.id || 'unknown',
+      error: errorMessage,
+      processingTime,
+      clientIP,
+      userAgent
+    });
+
+    console.error('Meal analysis error:', error);
+
+    // 에러 응답
+    return NextResponse.json(
+      { 
+        success: false, 
+        error: '음식 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+      },
+      { 
+        status: 500,
+        headers: {
+          'X-Processing-Time': processingTime.toString()
+        }
+      }
+    );
   }
 }
 
@@ -146,293 +336,83 @@ async function analyzeImageWithGemini(
     // API 호출 (타임아웃 설정)
     const result = await Promise.race([
       model.generateContent(prompt),
-      new Promise((_, reject) => 
+      new Promise<never>((_, reject) => 
         setTimeout(() => reject(new Error('API call timeout')), CONFIG.apiTimeout)
       )
     ]);
 
-    if (!result || typeof result !== 'object' || !('response' in result)) {
-      throw new Error('Invalid response from Gemini API');
+    if (!result.response) {
+      throw new Error('Gemini API 응답이 없습니다.');
     }
 
-    // 타입 assertion을 더 구체적으로 변경
-    const response = (result as { response: { text(): string } }).response;
-    const text = response.text();
-    
+    const text = result.response.text();
     if (!text) {
-      throw new Error('Empty response from Gemini API');
+      throw new Error('Gemini API 텍스트 응답이 없습니다.');
     }
 
-    // JSON 파싱
-    let parsedResult: FoodAnalysisResult;
+    // JSON 파싱 및 검증
+    let jsonData: FoodAnalysisResult;
     try {
       // JSON 응답에서 코드 블록 제거
-      const cleanText = text.replace(/```json\s*|\s*```/g, '').trim();
-      const jsonData = JSON.parse(cleanText);
-      
-      // 응답 구조 검증
-      if (!jsonData.foods || !Array.isArray(jsonData.foods)) {
-        throw new Error('Invalid response structure: missing foods array');
-      }
-
-      // Food 타입 정의
-      interface RawFoodItem {
-        name?: string;
-        calories?: number | string;
-        amount?: string;
-        confidence?: number | string;
-      }
-
-      parsedResult = {
-        foods: jsonData.foods.map((food: RawFoodItem) => ({
-          name: food.name || '알 수 없음',
-          calories: Number(food.calories) || 0,
-          amount: food.amount || '알 수 없음',
-          confidence: Number(food.confidence) || 0
-        })),
-        total_calories: Number(jsonData.total_calories) || 0,
-        meal_type: jsonData.meal_type || undefined,
-        analysis_confidence: Number(jsonData.analysis_confidence) || 0,
-        analyzed_at: new Date().toISOString()
-      };
-
-      // 신뢰도 필터링
-      parsedResult.foods = parsedResult.foods.filter(food => 
-        food.confidence >= CONFIG.confidenceThreshold
-      );
-
-      // 총 칼로리 재계산
-      parsedResult.total_calories = parsedResult.foods.reduce(
-        (sum, food) => sum + food.calories, 0
-      );
-
-    } catch (parseError) {
-      throw new Error(`Failed to parse API response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+      const cleanedText = text.replace(/```json\n?|\n?```/g, '').trim();
+      jsonData = JSON.parse(cleanedText);
+    } catch {
+      console.error('JSON 파싱 실패:', text);
+      throw new Error('AI 응답을 파싱할 수 없습니다.');
     }
 
-    return parsedResult;
+    // 응답 데이터 검증 및 정리
+    if (!jsonData.foods || !Array.isArray(jsonData.foods)) {
+      throw new Error('올바르지 않은 음식 데이터 형식입니다.');
+    }
+
+    // 신뢰도 기반 필터링
+    const filteredFoods = jsonData.foods
+      .filter((food: unknown) => {
+        if (typeof food === 'object' && food !== null && 'confidence' in food) {
+          const foodItem = food as { confidence: number };
+          return foodItem.confidence >= CONFIG.confidenceThreshold;
+        }
+        return false;
+      })
+      .map((food: unknown) => {
+        const foodItem = food as { name: string; calories: number; amount: string; confidence: number };
+        return {
+          name: foodItem.name || '알 수 없는 음식',
+          calories: Math.max(0, Math.round(foodItem.calories || 0)),
+          amount: foodItem.amount || '적당량',
+          confidence: Math.min(1, Math.max(0, foodItem.confidence || 0))
+        };
+      });
+
+    if (filteredFoods.length === 0) {
+      throw new Error('신뢰도가 충분한 음식을 찾을 수 없습니다.');
+    }
+
+    // 총 칼로리 재계산
+    const totalCalories = filteredFoods.reduce((sum, food) => sum + food.calories, 0);
+
+    const finalResult: FoodAnalysisResult = {
+      foods: filteredFoods,
+      total_calories: totalCalories,
+      meal_type: jsonData.meal_type || undefined,
+      analysis_confidence: Math.min(1, Math.max(0, jsonData.analysis_confidence || 0)),
+      analyzed_at: new Date().toISOString()
+    };
+
+    return finalResult;
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     
     // 재시도 로직
-    if (retryCount < CONFIG.retryAttempts) {
+    if (retryCount < CONFIG.retryAttempts && !errorMessage.includes('timeout')) {
       console.log(`Retrying Gemini API call (${retryCount + 1}/${CONFIG.retryAttempts})...`);
-      await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1))); // 점진적 백오프
+      await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
       return analyzeImageWithGemini(processedImage, retryCount + 1);
     }
 
-    throw new Error(`Gemini API analysis failed: ${errorMessage}`);
-  }
-}
-
-/**
- * 분석 결과를 데이터베이스에 저장
- */
-async function saveAnalysisResult(
-  userId: string,
-  analysisResult: FoodAnalysisResult,
-  processedImage: ImageProcessingResult
-): Promise<void> {
-  try {
-    const record: MealAnalysisRecord = {
-      id: crypto.randomUUID(),
-      user_id: userId,
-      image_hash: processedImage.originalHash,
-      analysis_result: analysisResult,
-      processing_time: processedImage.processingTime,
-      image_size: processedImage.analysis.size,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-
-    const { error } = await supabase
-      .from('meal_analysis')
-      .insert([record]);
-
-    if (error) {
-      console.error('Failed to save analysis result:', error);
-      throw new Error('Failed to save analysis result to database');
-    }
-  } catch (error) {
-    console.error('Database save error:', error);
-    // 데이터베이스 저장 실패는 치명적이지 않으므로 로깅만 하고 계속 진행
-  }
-}
-
-/**
- * 메인 POST 핸들러
- */
-export async function POST(request: NextRequest): Promise<NextResponse> {
-  const startTime = Date.now();
-  const clientIP = getClientIP(request);
-  const userAgent = getUserAgent(request);
-  
-  try {
-    // 환경 변수 검증
-    validateEnvironmentVariables();
-
-    // Rate limiting 체크
-    const rateLimitResult = await checkRateLimit(rateLimiters.general, clientIP);
-    if (!rateLimitResult.allowed) {
-      await logSecurityEvent('rate_limit_exceeded', {
-        ip: clientIP,
-        userAgent,
-        endpoint: '/api/meals/analyze',
-        retryAfter: rateLimitResult.retryAfter
-      });
-      
-      return NextResponse.json({
-        success: false,
-        error: 'too_many_requests',
-        message: '요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.'
-      }, { 
-        status: 429,
-        headers: {
-          'X-RateLimit-Limit': '100',
-          'X-RateLimit-Remaining': '0',
-          'X-RateLimit-Reset': String(Date.now() + (rateLimitResult.retryAfter || 60000))
-        }
-      });
-    }
-
-    // 인증 확인
-    const authHeader = request.headers.get('authorization');
-    const token = extractBearerToken(authHeader);
-    
-    if (!token) {
-      return NextResponse.json({
-        success: false,
-        error: 'unauthorized',
-        message: '인증이 필요합니다.'
-      }, { status: 401 });
-    }
-
-    const user = await getUserFromToken(token);
-    if (!user) {
-      return NextResponse.json({
-        success: false,
-        error: 'invalid_token',
-        message: '유효하지 않은 토큰입니다.'
-      }, { status: 401 });
-    }
-
-    // 메모리 사용량 모니터링
-    const memoryBefore = getMemoryUsage();
-    
-    // 이미지 추출 및 처리
-    const imageBuffer = await extractImageFromFormData(request);
-    const originalSize = imageBuffer.length;
-    
-    // 고도화된 이미지 처리
-    const processedImage = await processImageForAI(imageBuffer);
-    
-    // 압축률 계산
-    const compressionRatio = calculateCompressionRatio(originalSize, processedImage.analysis.size);
-    
-    console.log(`Image processing stats:
-      - Original size: ${(originalSize / 1024 / 1024).toFixed(2)}MB
-      - Processed size: ${(processedImage.analysis.size / 1024 / 1024).toFixed(2)}MB
-      - Compression ratio: ${compressionRatio.toFixed(1)}%
-      - Processing time: ${processedImage.processingTime}ms
-      - Cache stats: ${JSON.stringify(cacheManager.getStats())}
-    `);
-
-    // AI 분석 수행
-    const analysisResult = await analyzeImageWithGemini(processedImage);
-    
-    // 메모리 사용량 체크
-    const memoryAfter = getMemoryUsage();
-    const memoryUsed = memoryAfter.heapUsed - memoryBefore.heapUsed;
-    
-    // 분석 결과 저장 (선택적)
-    const saveToHistory = request.nextUrl.searchParams.get('save_to_history') === 'true';
-    if (saveToHistory) {
-      await saveAnalysisResult(user.id, analysisResult, processedImage);
-    }
-
-    // 성공 로깅
-    await logSecurityEvent('meal_analysis_success', {
-      userId: user.id,
-      ip: clientIP,
-      userAgent,
-      processingTime: processedImage.processingTime,
-      originalSize,
-      processedSize: processedImage.analysis.size,
-      compressionRatio,
-      memoryUsed,
-      totalCalories: analysisResult.total_calories,
-      foodsCount: analysisResult.foods.length,
-      analysisConfidence: analysisResult.analysis_confidence
-    });
-
-    const response: FoodAnalysisResponse = {
-      success: true,
-      data: analysisResult,
-      message: '음식 분석이 완료되었습니다.'
-    };
-
-    return NextResponse.json(response, {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Processing-Time': String(Date.now() - startTime),
-        'X-Image-Hash': processedImage.originalHash,
-        'X-Compression-Ratio': String(compressionRatio.toFixed(1))
-      }
-    });
-
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    
-    // 에러 로깅
-    await logSecurityEvent('meal_analysis_error', {
-      ip: clientIP,
-      userAgent,
-      endpoint: '/api/meals/analyze',
-      error: errorMessage,
-      processingTime: Date.now() - startTime
-    });
-
-    // 구체적인 에러 응답
-    let statusCode = 500;
-    let errorCode = 'internal_error';
-    let userMessage = '음식 분석 중 오류가 발생했습니다.';
-
-    if (errorMessage.includes('No image file found') || 
-        errorMessage.includes('Invalid file type') ||
-        errorMessage.includes('Unsupported image format')) {
-      statusCode = 400;
-      errorCode = 'invalid_image';
-      userMessage = '올바른 이미지 파일을 업로드해주세요.';
-    } else if (errorMessage.includes('File size exceeds')) {
-      statusCode = 413;
-      errorCode = 'file_too_large';
-      userMessage = '파일 크기가 너무 큽니다. 10MB 이하의 파일을 업로드해주세요.';
-    } else if (errorMessage.includes('Corrupted or invalid')) {
-      statusCode = 400;
-      errorCode = 'corrupted_image';
-      userMessage = '손상된 이미지 파일입니다. 다른 파일을 사용해주세요.';
-    } else if (errorMessage.includes('API call timeout') || 
-               errorMessage.includes('Gemini API analysis failed')) {
-      statusCode = 503;
-      errorCode = 'service_unavailable';
-      userMessage = '분석 서비스가 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해주세요.';
-    }
-
-    const response: FoodAnalysisResponse = {
-      success: false,
-      error: errorCode,
-      message: userMessage
-    };
-
-    return NextResponse.json(response, { 
-      status: statusCode,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Processing-Time': String(Date.now() - startTime)
-      }
-    });
+    throw new Error(`음식 분석 실패: ${errorMessage}`);
   }
 }
 
