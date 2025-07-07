@@ -1,26 +1,94 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { 
+  checkRateLimit, 
+  getSecurityHeaders,
+  getClientIP,
+  getUserAgent,
+  logSecurityEvent,
+  validateEnvironmentVariables,
+  rateLimiters
+} from '@/lib/security'
 import { createSupabaseAdmin } from '@/lib/supabase'
 import { 
-  createSuccessResponse, 
-  createErrorResponse, 
-  extractBearerToken,
   translateSupabaseError,
   logApiRequest,
   logApiError,
-  getRequestInfo
+  extractBearerToken
 } from '@/lib/api-utils'
 
 export async function GET(request: NextRequest) {
-  const { userAgent, ip } = getRequestInfo(request)
-  logApiRequest('GET', '/api/auth/me', userAgent, ip)
+  // 보안 헤더 설정
+  const securityHeaders = getSecurityHeaders()
+  
+  // 환경 변수 검증
+  const envValidation = validateEnvironmentVariables()
+  if (!envValidation.isValid) {
+    logSecurityEvent('Environment validation failed', { errors: envValidation.errors }, 'error')
+    return NextResponse.json(
+      { success: false, message: '서버 설정 오류' },
+      { status: 500, headers: securityHeaders }
+    )
+  }
+  
+  const clientIP = getClientIP(request)
+  const userAgent = getUserAgent(request)
+  
+  // Rate Limiting 체크 (일반 API 제한 사용)
+  const rateLimitResult = await checkRateLimit(rateLimiters.general, clientIP)
+  if (!rateLimitResult.allowed) {
+    logSecurityEvent('Me endpoint rate limit exceeded', { 
+      ip: clientIP, 
+      userAgent,
+      retryAfter: rateLimitResult.retryAfter
+    }, 'warn')
+    
+    return NextResponse.json(
+      { 
+        success: false, 
+        message: 'API 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.',
+        retryAfter: rateLimitResult.retryAfter
+      },
+      { 
+        status: 429, 
+        headers: {
+          ...securityHeaders,
+          'Retry-After': Math.ceil((rateLimitResult.retryAfter || 0) / 1000).toString()
+        }
+      }
+    )
+  }
+  
+  logApiRequest('GET', '/api/auth/me', userAgent, clientIP)
   
   try {
     // Authorization 헤더에서 토큰 추출
     const authHeader = request.headers.get('authorization')
-    const token = extractBearerToken(authHeader || undefined)
+    const token = extractBearerToken(authHeader)
     
     if (!token) {
-      return createErrorResponse('인증 토큰이 필요합니다.', 401)
+      logSecurityEvent('Me endpoint missing token', { 
+        ip: clientIP,
+        userAgent
+      }, 'warn')
+      
+      return NextResponse.json(
+        { success: false, message: '인증 토큰이 필요합니다.' },
+        { status: 401, headers: securityHeaders }
+      )
+    }
+    
+    // 토큰 기본 형식 검증
+    if (token.length < 10 || token.length > 1000) {
+      logSecurityEvent('Me endpoint invalid token format', { 
+        tokenLength: token.length,
+        ip: clientIP,
+        userAgent
+      }, 'warn')
+      
+      return NextResponse.json(
+        { success: false, message: '유효하지 않은 토큰 형식입니다.' },
+        { status: 401, headers: securityHeaders }
+      )
     }
     
     // Supabase Admin 클라이언트 생성
@@ -31,7 +99,17 @@ export async function GET(request: NextRequest) {
     
     if (userError || !userData.user) {
       const translatedError = translateSupabaseError(userError?.message || 'Invalid token')
-      return createErrorResponse(translatedError, 401)
+      
+      logSecurityEvent('Me endpoint token validation failed', { 
+        error: userError?.message || 'No user data',
+        ip: clientIP,
+        userAgent
+      }, 'warn')
+      
+      return NextResponse.json(
+        { success: false, message: translatedError },
+        { status: 401, headers: securityHeaders }
+      )
     }
     
     // 사용자 프로필 정보 조회
@@ -59,6 +137,14 @@ export async function GET(request: NextRequest) {
       }
     }
     
+    // 성공 로그
+    logSecurityEvent('Me endpoint successful', { 
+      userId: userData.user.id,
+      email: userData.user.email?.substring(0, 3) + '***',
+      ip: clientIP,
+      userAgent
+    }, 'info')
+    
     // 사용자 정보 반환
     const userResponse = {
       id: userData.user.id,
@@ -73,15 +159,48 @@ export async function GET(request: NextRequest) {
       profile: userProfile
     }
     
-    return createSuccessResponse(userResponse, '사용자 정보 조회 성공')
+    return NextResponse.json(
+      { success: true, data: userResponse, message: '사용자 정보 조회 성공' },
+      { status: 200, headers: securityHeaders }
+    )
     
   } catch (error) {
-    logApiError('/api/auth/me', error, { ip })
-    return createErrorResponse('서버 오류가 발생했습니다.', 500)
+    logSecurityEvent('Me endpoint server error', { 
+      error: error instanceof Error ? error.message : 'Unknown error',
+      ip: clientIP,
+      userAgent
+    }, 'error')
+    
+    logApiError('/api/auth/me', error, { ip: clientIP })
+    
+    return NextResponse.json(
+      { success: false, message: '서버 오류가 발생했습니다.' },
+      { status: 500, headers: securityHeaders }
+    )
   }
 }
 
-// POST 메서드는 지원하지 않음
+// POST 메서드는 지원하지 않음 - 보안 강화
 export async function POST() {
-  return createErrorResponse('지원하지 않는 메서드입니다.', 405)
+  const securityHeaders = getSecurityHeaders()
+  
+  return NextResponse.json(
+    { success: false, message: '지원하지 않는 메서드입니다.' },
+    { status: 405, headers: securityHeaders }
+  )
+}
+
+// 다른 HTTP 메서드들도 명시적으로 거부
+export async function PUT() {
+  return NextResponse.json(
+    { success: false, message: '지원하지 않는 메서드입니다.' },
+    { status: 405, headers: getSecurityHeaders() }
+  )
+}
+
+export async function DELETE() {
+  return NextResponse.json(
+    { success: false, message: '지원하지 않는 메서드입니다.' },
+    { status: 405, headers: getSecurityHeaders() }
+  )
 } 

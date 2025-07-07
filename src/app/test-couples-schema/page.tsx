@@ -1,103 +1,89 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Couple, ActiveCouple, CoupleRequestResponse } from '@/types/database';
+import { User } from '@supabase/supabase-js';
+
+interface CoupleRecord {
+  id: string;
+  user1_id: string;
+  user2_id: string;
+  relationship_status: 'pending' | 'active' | 'inactive' | 'blocked';
+  created_at: string;
+  accepted_at?: string;
+}
+
+interface TestResult {
+  success: boolean;
+  message: string;
+  data?: Record<string, unknown>;
+}
 
 export default function TestCouplesSchema() {
-  const [user, setUser] = useState<any>(null);
-  const [couples, setCouples] = useState<Couple[]>([]);
-  const [activeCouples, setActiveCouples] = useState<ActiveCouple[]>([]);
+  const [user, setUser] = useState<User | null>(null);
+  const [couples, setCouples] = useState<CoupleRecord[]>([]);
   const [targetEmail, setTargetEmail] = useState('');
-  const [coupleIdToAccept, setCoupleIdToAccept] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [testResults, setTestResults] = useState<TestResult[]>([]);
 
-  // Get current user
-  useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-      if (user) {
-        await fetchCouples();
-        await fetchActiveCouples();
-      }
-    };
-    getUser();
-  }, [supabase]);
+  // Add test result
+  const addTestResult = useCallback((result: TestResult) => {
+    setTestResults(prev => [result, ...prev.slice(0, 9)]);
+  }, []);
 
   // Test database connection
-  const testConnection = async () => {
+  const testConnection = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
       
-      // First check if couples table exists
       const { data, error } = await supabase
         .from('couples')
         .select('*')
         .limit(1);
       
       if (error) {
-        setError(`❌ Database connection failed: ${error.message} (Code: ${error.code})`);
-        console.error('Supabase error details:', error);
+        setError(`❌ Database connection failed: ${error.message}`);
         return;
       }
       
       setMessage('✅ Couples table connection successful!');
-      
-      // Also test if we can access the relationship_status enum
-      const { data: enumData, error: enumError } = await supabase
-        .rpc('sql', { query: "SELECT unnest(enum_range(NULL::relationship_status)) as status" })
-        .select();
-      
-      if (enumError) {
-        console.log('Enum test failed:', enumError);
-      } else {
-        console.log('Enum values:', enumData);
-      }
+      addTestResult({ success: true, message: 'Database connection test passed', data: { result: data } });
       
     } catch (err) {
-      console.error('Full error:', err);
-      setError(`❌ Database connection failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(`❌ Database connection failed: ${errorMessage}`);
+      addTestResult({ success: false, message: `Database connection failed: ${errorMessage}` });
     } finally {
       setLoading(false);
     }
-  };
+  }, [addTestResult]);
 
-  // Fetch couples (all relationships user is part of)
-  const fetchCouples = async () => {
+  // Fetch couples data
+  const fetchCouples = useCallback(async () => {
+    if (!user) return;
+    
     try {
       const { data, error } = await supabase
         .from('couples')
         .select('*')
+        .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
       setCouples(data || []);
+      addTestResult({ success: true, message: 'Fetched couples data', data: { count: data?.length || 0 } });
     } catch (err) {
-      setError(`Failed to fetch couples: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Failed to fetch couples: ${errorMessage}`);
+      addTestResult({ success: false, message: `Failed to fetch couples: ${errorMessage}` });
     }
-  };
-
-  // Fetch active couples view
-  const fetchActiveCouples = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('active_couples')
-        .select('*')
-        .order('accepted_at', { ascending: false });
-      
-      if (error) throw error;
-      setActiveCouples(data || []);
-    } catch (err) {
-      setError(`Failed to fetch active couples: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    }
-  };
+  }, [user, addTestResult]);
 
   // Send couple request
-  const sendCoupleRequest = async () => {
+  const sendCoupleRequest = useCallback(async () => {
     if (!targetEmail.trim()) {
       setError('Please enter target user email');
       return;
@@ -107,83 +93,76 @@ export default function TestCouplesSchema() {
       setLoading(true);
       setError('');
       
+      // Find target user by email
+      const { data: targetUser, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', targetEmail)
+        .single();
+      
+      if (userError) {
+        setError('User not found');
+        return;
+      }
+      
+      // Create couple request
       const { data, error } = await supabase
-        .rpc('send_couple_request', { target_user_email: targetEmail });
+        .from('couples')
+        .insert({
+          user1_id: user?.id,
+          user2_id: targetUser.id,
+          relationship_status: 'pending'
+        })
+        .select()
+        .single();
       
       if (error) throw error;
       
-      const response = data as CoupleRequestResponse;
-      if (response.success) {
-        setMessage(`✅ ${response.message}`);
-        setTargetEmail('');
-        await fetchCouples();
-      } else {
-        setError(`❌ ${response.message}`);
-      }
+      setMessage('✅ Couple request sent successfully!');
+      setTargetEmail('');
+      await fetchCouples();
+      addTestResult({ success: true, message: 'Couple request sent', data });
     } catch (err) {
-      setError(`Failed to send couple request: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Failed to send couple request: ${errorMessage}`);
+      addTestResult({ success: false, message: `Failed to send couple request: ${errorMessage}` });
     } finally {
       setLoading(false);
     }
-  };
+  }, [targetEmail, user, fetchCouples, addTestResult]);
 
   // Accept couple request
-  const acceptCoupleRequest = async () => {
-    if (!coupleIdToAccept.trim()) {
-      setError('Please enter couple ID to accept');
-      return;
-    }
-
+  const acceptCoupleRequest = useCallback(async (coupleId: string) => {
     try {
       setLoading(true);
       setError('');
       
       const { data, error } = await supabase
-        .rpc('accept_couple_request', { couple_id: coupleIdToAccept });
-      
-      if (error) throw error;
-      
-      const response = data as CoupleRequestResponse;
-      if (response.success) {
-        setMessage(`✅ ${response.message}`);
-        setCoupleIdToAccept('');
-        await fetchCouples();
-        await fetchActiveCouples();
-      } else {
-        setError(`❌ ${response.message}`);
-      }
-    } catch (err) {
-      setError(`Failed to accept couple request: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Update couple status
-  const updateCoupleStatus = async (coupleId: string, newStatus: 'inactive' | 'blocked') => {
-    try {
-      setLoading(true);
-      setError('');
-      
-      const { error } = await supabase
         .from('couples')
-        .update({ relationship_status: newStatus })
-        .eq('id', coupleId);
+        .update({ 
+          relationship_status: 'active', 
+          accepted_at: new Date().toISOString() 
+        })
+        .eq('id', coupleId)
+        .select()
+        .single();
       
       if (error) throw error;
       
-      setMessage(`✅ Couple relationship set to ${newStatus}`);
+      setMessage('✅ Couple request accepted!');
       await fetchCouples();
-      await fetchActiveCouples();
+      addTestResult({ success: true, message: 'Couple request accepted', data });
     } catch (err) {
-      setError(`Failed to update couple status: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Failed to accept couple request: ${errorMessage}`);
+      addTestResult({ success: false, message: `Failed to accept couple request: ${errorMessage}` });
     } finally {
       setLoading(false);
     }
-  };
+  }, [fetchCouples, addTestResult]);
 
   // Delete couple record
-  const deleteCoupleRecord = async (coupleId: string) => {
+  const deleteCoupleRecord = useCallback(async (coupleId: string) => {
     try {
       setLoading(true);
       setError('');
@@ -195,231 +174,213 @@ export default function TestCouplesSchema() {
       
       if (error) throw error;
       
-      setMessage('✅ Couple record deleted successfully');
+      setMessage('✅ Couple record deleted!');
       await fetchCouples();
-      await fetchActiveCouples();
+      addTestResult({ success: true, message: 'Couple record deleted' });
     } catch (err) {
-      setError(`Failed to delete couple record: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Failed to delete couple record: ${errorMessage}`);
+      addTestResult({ success: false, message: `Failed to delete couple record: ${errorMessage}` });
     } finally {
       setLoading(false);
     }
-  };
+  }, [fetchCouples, addTestResult]);
 
+  // Get status color
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'text-green-600';
-      case 'pending': return 'text-yellow-600';
-      case 'inactive': return 'text-gray-600';
-      case 'blocked': return 'text-red-600';
-      default: return 'text-gray-600';
+      case 'active': return 'bg-green-500';
+      case 'pending': return 'bg-yellow-500';
+      case 'inactive': return 'bg-gray-500';
+      case 'blocked': return 'bg-red-500';
+      default: return 'bg-gray-300';
     }
   };
 
-  if (!user) {
-    return (
-      <div className="p-8">
-        <h1 className="text-2xl font-bold mb-4">Couples Schema Test</h1>
-        <p className="text-red-600">Please log in to test couples schema</p>
-        <a href="/test-auth" className="text-blue-600 underline">Go to Auth Test</a>
-      </div>
-    );
-  }
+  // Clear results
+  const clearResults = useCallback(() => {
+    setTestResults([]);
+    setMessage('');
+    setError('');
+  }, []);
+
+  // Get current user
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    };
+    getUser();
+  }, []);
+
+  // Fetch couples when user changes
+  useEffect(() => {
+    if (user) {
+      fetchCouples();
+    }
+  }, [user, fetchCouples]);
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">Couples Schema Test</h1>
-      
-      <div className="mb-6 p-4 bg-black text-white rounded-lg">
-        <h2 className="text-xl font-semibold mb-2">Current User</h2>
-        <p><strong>Email:</strong> {user.email}</p>
-        <p><strong>ID:</strong> {user.id}</p>
+    <div className="max-w-6xl mx-auto p-6 space-y-8 bg-gray-50 min-h-screen">
+      <div className="text-center">
+        <h1 className="text-3xl font-bold text-black mb-2">커플 스키마 테스트</h1>
+        <p className="text-gray-800 text-lg">Supabase 커플 테이블 및 관계 테스트</p>
       </div>
 
-      {/* Messages */}
+      {/* User Info */}
+      {user && (
+        <div className="bg-white border-2 border-gray-200 rounded-lg p-6 shadow-md">
+          <h2 className="text-xl font-bold text-black mb-4">현재 사용자</h2>
+          <div className="text-black">
+            <p><strong>ID:</strong> {user.id}</p>
+            <p><strong>Email:</strong> {user.email}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Test Controls */}
+      <div className="bg-white border-2 border-gray-200 rounded-lg p-6 shadow-md">
+        <h2 className="text-xl font-bold text-black mb-4">테스트 컨트롤</h2>
+        <div className="space-y-4">
+          <div className="flex flex-col space-y-2">
+            <label className="text-sm font-bold text-black">대상 사용자 이메일</label>
+            <input
+              type="email"
+              value={targetEmail}
+              onChange={(e) => setTargetEmail(e.target.value)}
+              className="px-3 py-2 border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+              placeholder="커플 요청을 보낼 사용자 이메일"
+            />
+          </div>
+          
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={testConnection}
+              disabled={loading}
+              className="px-4 py-2 bg-blue-600 text-white font-bold rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+            >
+              {loading ? '처리 중...' : '연결 테스트'}
+            </button>
+            
+            <button
+              onClick={sendCoupleRequest}
+              disabled={loading || !targetEmail.trim()}
+              className="px-4 py-2 bg-green-600 text-white font-bold rounded-md hover:bg-green-700 disabled:bg-gray-400"
+            >
+              {loading ? '처리 중...' : '커플 요청 보내기'}
+            </button>
+            
+            <button
+              onClick={fetchCouples}
+              disabled={loading}
+              className="px-4 py-2 bg-purple-600 text-white font-bold rounded-md hover:bg-purple-700 disabled:bg-gray-400"
+            >
+              {loading ? '처리 중...' : '커플 목록 새로고침'}
+            </button>
+            
+            <button
+              onClick={clearResults}
+              className="px-4 py-2 bg-gray-600 text-white font-bold rounded-md hover:bg-gray-700"
+            >
+              결과 지우기
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Status Messages */}
       {message && (
-        <div className="mb-4 p-4 bg-green-100 text-green-800 rounded-lg">
-          {message}
+        <div className="bg-green-100 border-2 border-green-300 rounded-lg p-4 shadow-md">
+          <p className="text-green-800 font-bold">{message}</p>
         </div>
       )}
-      
+
       {error && (
-        <div className="mb-4 p-4 bg-red-100 text-red-800 rounded-lg">
-          {error}
+        <div className="bg-red-100 border-2 border-red-300 rounded-lg p-4 shadow-md">
+          <p className="text-red-800 font-bold">{error}</p>
         </div>
       )}
 
-      {/* Test Connection */}
-      <div className="mb-6 p-4 border rounded-lg">
-        <h2 className="text-xl font-semibold mb-4">1. Test Database Connection</h2>
-        <button
-          onClick={testConnection}
-          disabled={loading}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-        >
-          {loading ? 'Testing...' : 'Test Connection'}
-        </button>
-      </div>
-
-      {/* Send Couple Request */}
-      <div className="mb-6 p-4 border rounded-lg">
-        <h2 className="text-xl font-semibold mb-4">2. Send Couple Request</h2>
-        <div className="flex gap-2 mb-2">
-          <input
-            type="email"
-            placeholder="Target user email"
-            value={targetEmail}
-            onChange={(e) => setTargetEmail(e.target.value)}
-            className="flex-1 px-3 py-2 border rounded"
-          />
-          <button
-            onClick={sendCoupleRequest}
-            disabled={loading || !targetEmail.trim()}
-            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
-          >
-            {loading ? 'Sending...' : 'Send Request'}
-          </button>
-        </div>
-        <p className="text-sm text-gray-600">
-          Enter the email of the user you want to connect with as a couple
-        </p>
-      </div>
-
-      {/* Accept Couple Request */}
-      <div className="mb-6 p-4 border rounded-lg">
-        <h2 className="text-xl font-semibold mb-4">3. Accept Couple Request</h2>
-        <div className="flex gap-2 mb-2">
-          <input
-            type="text"
-            placeholder="Couple ID to accept"
-            value={coupleIdToAccept}
-            onChange={(e) => setCoupleIdToAccept(e.target.value)}
-            className="flex-1 px-3 py-2 border rounded"
-          />
-          <button
-            onClick={acceptCoupleRequest}
-            disabled={loading || !coupleIdToAccept.trim()}
-            className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
-          >
-            {loading ? 'Accepting...' : 'Accept Request'}
-          </button>
-        </div>
-        <p className="text-sm text-gray-600">
-          Copy the couple ID from the pending requests below
-        </p>
-      </div>
-
-      {/* All Couples */}
-      <div className="mb-6 p-4 border rounded-lg">
-        <h2 className="text-xl font-semibold mb-4">4. All Couple Relationships</h2>
-        <button
-          onClick={fetchCouples}
-          disabled={loading}
-          className="mb-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-        >
-          {loading ? 'Loading...' : 'Refresh'}
-        </button>
-        
-        {couples.length === 0 ? (
-          <p className="text-gray-600">No couple relationships found</p>
-        ) : (
-          <div className="space-y-2">
+      {/* Couples List */}
+      {couples.length > 0 && (
+        <div className="bg-white border-2 border-gray-200 rounded-lg p-6 shadow-md">
+          <h2 className="text-xl font-bold text-black mb-4">커플 목록</h2>
+          <div className="space-y-4">
             {couples.map((couple) => (
-              <div key={couple.id} className="p-3 border rounded-lg">
-                <div className="flex justify-between items-start">
-                  <div>
+              <div key={couple.id} className="border rounded-lg p-4 bg-gray-50">
+                <div className="flex justify-between items-start mb-2">
+                  <div className="text-black">
                     <p><strong>ID:</strong> {couple.id}</p>
                     <p><strong>User 1:</strong> {couple.user1_id}</p>
                     <p><strong>User 2:</strong> {couple.user2_id}</p>
-                    <p><strong>Status:</strong> <span className={getStatusColor(couple.relationship_status)}>{couple.relationship_status}</span></p>
-                    <p><strong>Requested By:</strong> {couple.requested_by}</p>
-                    <p><strong>Requested At:</strong> {new Date(couple.requested_at).toLocaleString()}</p>
+                    <p><strong>생성일:</strong> {new Date(couple.created_at).toLocaleString()}</p>
                     {couple.accepted_at && (
-                      <p><strong>Accepted At:</strong> {new Date(couple.accepted_at).toLocaleString()}</p>
+                      <p><strong>수락일:</strong> {new Date(couple.accepted_at).toLocaleString()}</p>
                     )}
                   </div>
-                  <div className="flex gap-2">
-                    {couple.relationship_status === 'active' && (
-                      <>
-                        <button
-                          onClick={() => updateCoupleStatus(couple.id, 'inactive')}
-                          className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-sm"
-                        >
-                          Deactivate
-                        </button>
-                        <button
-                          onClick={() => updateCoupleStatus(couple.id, 'blocked')}
-                          className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
-                        >
-                          Block
-                        </button>
-                      </>
+                  <div className="flex flex-col space-y-2">
+                    <span className={`px-2 py-1 rounded text-white text-sm ${getStatusColor(couple.relationship_status)}`}>
+                      {couple.relationship_status}
+                    </span>
+                    {couple.relationship_status === 'pending' && couple.user2_id === user?.id && (
+                      <button
+                        onClick={() => acceptCoupleRequest(couple.id)}
+                        disabled={loading}
+                        className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:bg-gray-400"
+                      >
+                        수락
+                      </button>
                     )}
                     <button
                       onClick={() => deleteCoupleRecord(couple.id)}
-                      className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                      disabled={loading}
+                      className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 disabled:bg-gray-400"
                     >
-                      Delete
+                      삭제
                     </button>
                   </div>
                 </div>
               </div>
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* Active Couples View */}
-      <div className="mb-6 p-4 border rounded-lg">
-        <h2 className="text-xl font-semibold mb-4">5. Active Couples View</h2>
-        <button
-          onClick={fetchActiveCouples}
-          disabled={loading}
-          className="mb-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-        >
-          {loading ? 'Loading...' : 'Refresh Active Couples'}
-        </button>
-        
-        {activeCouples.length === 0 ? (
-          <p className="text-gray-600">No active couple relationships found</p>
-        ) : (
+      {/* Test Results */}
+      {testResults.length > 0 && (
+        <div className="bg-white border-2 border-gray-200 rounded-lg p-6 shadow-md">
+          <h2 className="text-xl font-bold text-black mb-4">테스트 결과</h2>
           <div className="space-y-2">
-            {activeCouples.map((couple) => (
-              <div key={couple.id} className="p-3 border rounded-lg bg-green-50 text-black">
-                <p><strong>Couple ID:</strong> {couple.id}</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                  <div>
-                    <h4 className="font-medium">User 1:</h4>
-                    <p>Email: {couple.user1_email}</p>
-                    <p>Name: {couple.user1_display_name || 'Not set'}</p>
-                    <p>ID: {couple.user1_id}</p>
-                  </div>
-                  <div>
-                    <h4 className="font-medium">User 2:</h4>
-                    <p>Email: {couple.user2_email}</p>
-                    <p>Name: {couple.user2_display_name || 'Not set'}</p>
-                    <p>ID: {couple.user2_id}</p>
-                  </div>
+            {testResults.map((result, index) => (
+              <div key={index} className={`p-3 rounded-lg ${result.success ? 'bg-green-100' : 'bg-red-100'}`}>
+                <div className="flex justify-between items-start">
+                  <span className={`font-bold ${result.success ? 'text-green-800' : 'text-red-800'}`}>
+                    {result.success ? '✅' : '❌'} {result.message}
+                  </span>
+                  <span className="text-sm text-gray-600">
+                    #{testResults.length - index}
+                  </span>
                 </div>
-                <p className="mt-2"><strong>Connected Since:</strong> {new Date(couple.accepted_at || couple.requested_at).toLocaleString()}</p>
+                {result.data && (
+                  <pre className="mt-2 text-sm text-gray-700 bg-gray-50 p-2 rounded overflow-auto">
+                    {JSON.stringify(result.data, null, 2)}
+                  </pre>
+                )}
               </div>
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* Test Instructions */}
-      <div className="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-        <h2 className="text-lg font-semibold mb-2 text-black">Test Instructions</h2>
-        <ol className="list-decimal list-inside space-y-1 text-sm text-black">
-          <li>Test database connection first</li>
-          <li>Create another test user account (different email)</li>
-          <li>Send couple request to the other user's email</li>
-          <li>Log in as the other user and accept the request</li>
-          <li>Check that both users' partner_id fields are updated</li>
-          <li>Verify RLS policies prevent unauthorized access</li>
-          <li>Test status changes (inactive, blocked)</li>
-          <li>Verify active couples view works correctly</li>
-        </ol>
+      {/* Usage Guide */}
+      <div className="bg-blue-100 border-2 border-blue-300 rounded-lg p-6 shadow-md">
+        <h2 className="text-xl font-bold text-black mb-4">📋 사용 가이드</h2>
+        <div className="space-y-3 text-base text-black">
+          <p><strong className="text-blue-800">1. 연결 테스트:</strong> 먼저 데이터베이스 연결을 테스트합니다.</p>
+          <p><strong className="text-blue-800">2. 커플 요청:</strong> 다른 사용자의 이메일을 입력하여 커플 요청을 보냅니다.</p>
+          <p><strong className="text-blue-800">3. 요청 수락:</strong> 받은 요청을 수락하여 커플 관계를 활성화합니다.</p>
+          <p><strong className="text-blue-800">4. 관계 관리:</strong> 기존 커플 관계를 조회하고 관리합니다.</p>
+        </div>
       </div>
     </div>
   );

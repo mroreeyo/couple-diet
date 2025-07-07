@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 // API 응답 타입 정의
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean
   data?: T
   error?: string
@@ -56,7 +56,7 @@ export function validatePassword(password: string): { isValid: boolean; error?: 
 }
 
 // 요청 본문 검증
-export async function validateRequestBody(request: Request, requiredFields: string[]): Promise<{ isValid: boolean; body?: any; error?: string }> {
+export async function validateRequestBody(request: Request, requiredFields: string[]): Promise<{ isValid: boolean; body?: unknown; error?: string }> {
   try {
     const body = await request.json()
     
@@ -67,7 +67,7 @@ export async function validateRequestBody(request: Request, requiredFields: stri
     }
     
     return { isValid: true, body }
-  } catch (error) {
+  } catch {
     return { isValid: false, error: '잘못된 JSON 형식입니다.' }
   }
 }
@@ -99,33 +99,24 @@ export function translateSupabaseError(error: string): string {
   return '알 수 없는 오류가 발생했습니다.'
 }
 
-// 로깅 유틸리티
-export function logApiRequest(method: string, endpoint: string, userAgent?: string, ip?: string) {
-  const timestamp = new Date().toISOString()
-  console.log(`[${timestamp}] ${method} ${endpoint}`, {
-    userAgent,
-    ip,
-    timestamp
-  })
-}
-
-export function logApiError(endpoint: string, error: any, context?: any) {
-  const timestamp = new Date().toISOString()
-  console.error(`[${timestamp}] API Error in ${endpoint}:`, {
-    error: error.message || error,
-    context,
-    timestamp,
-    stack: error.stack
-  })
-}
-
-// JWT 토큰 검증 (Supabase에서 사용)
-export function extractBearerToken(authHeader?: string): string | null {
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return null
+// API 요청 로깅 (개발용)
+export function logApiRequest(method: string, url: string, userAgent: string, ip: string): void {
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[API] ${method} ${url}`, {
+      userAgent,
+      ip,
+      timestamp: new Date().toISOString()
+    })
   }
-  
-  return authHeader.substring(7)
+}
+
+// API 에러 로깅
+export function logApiError(endpoint: string, error: unknown, context?: Record<string, unknown>): void {
+  console.error(`[API Error] ${endpoint}:`, {
+    error: error instanceof Error ? error.message : String(error),
+    context,
+    timestamp: new Date().toISOString()
+  })
 }
 
 // 요청 헤더에서 정보 추출
@@ -136,4 +127,16 @@ export function getRequestInfo(request: Request) {
             'Unknown'
   
   return { userAgent, ip }
+}
+
+// Bearer 토큰 추출
+export function extractBearerToken(authHeader: string | null): string | null {
+  if (!authHeader) return null
+  
+  const parts = authHeader.split(' ')
+  if (parts.length !== 2 || parts[0] !== 'Bearer') {
+    return null
+  }
+  
+  return parts[1]
 } 

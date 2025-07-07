@@ -94,16 +94,17 @@ export function SignupForm({
       } else {
         setSuccessMessage('회원가입이 완료되었습니다! 이메일을 확인하여 계정을 활성화해주세요.')
         
-        // 3초 후 로그인 페이지로 이동
+        // 3초 후 지정된 페이지로 이동
         setTimeout(() => {
           if (onSuccess) {
             onSuccess()
           } else {
-            router.push('/login')
+            router.push(redirectTo)
           }
         }, 3000)
       }
-    } catch (err) {
+    } catch (error) {
+      console.error('Error during signup:', error)
       setError('회원가입 중 오류가 발생했습니다.')
     } finally {
       setLoading(false)

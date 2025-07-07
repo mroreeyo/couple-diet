@@ -121,7 +121,8 @@ export function LoginForm({
           router.push(redirectTo)
         }
       }
-    } catch (err) {
+    } catch (error) {
+      console.error('Error during login:', error)
       setError('로그인 중 오류가 발생했습니다.')
     } finally {
       setLoading(false)

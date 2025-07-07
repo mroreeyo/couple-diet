@@ -1,110 +1,150 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 
-export default function TestSupabasePage() {
-  const [connectionStatus, setConnectionStatus] = useState<'loading' | 'connected' | 'error'>('loading')
-  const [projectInfo, setProjectInfo] = useState<any>(null)
-  const [error, setError] = useState<string | null>(null)
+interface TestResult {
+  success: boolean
+  message: string
+  data?: Record<string, unknown>
+}
 
-  useEffect(() => {
-    async function testConnection() {
-      try {
-        // Test basic connection by checking auth status
-        const { data: { session }, error: authError } = await supabase.auth.getSession()
-        
-        if (authError) {
-          throw authError
-        }
+export default function TestSupabase() {
+  const [results, setResults] = useState<TestResult[]>([])
+  const [loading, setLoading] = useState(false)
+  const [connected, setConnected] = useState(false)
 
-        // Test database connection by attempting to query
-        const { data, error: dbError } = await supabase
-          .from('users') // This will fail if table doesn't exist, but connection works
-          .select('*')
-          .limit(1)
+  const addResult = (result: TestResult) => {
+    setResults(prev => [...prev, result])
+  }
 
-        // Even if query fails due to missing table, if error is about missing table, connection is OK
-        if (dbError && !dbError.message.includes('relation "public.users" does not exist')) {
-          throw dbError
-        }
-
-        setConnectionStatus('connected')
-        setProjectInfo({
-          authSession: session ? 'Session exists' : 'No active session',
-          databaseAccess: dbError?.message.includes('does not exist') ? 'Connected (tables not created yet)' : 'Connected',
+  const testConnection = useCallback(async () => {
+    setLoading(true)
+    try {
+      const { error } = await supabase.auth.getSession()
+      if (error) {
+        addResult({
+          success: false,
+          message: `연결 실패: ${error.message}`
         })
-      } catch (err: any) {
-        setConnectionStatus('error')
-        setError(err.message || 'Unknown error')
+        setConnected(false)
+      } else {
+        addResult({
+          success: true,
+          message: 'Supabase 연결 성공!'
+        })
+        setConnected(true)
       }
+    } catch (error) {
+      addResult({
+        success: false,
+        message: `연결 중 오류: ${error instanceof Error ? error.message : String(error)}`
+      })
+      setConnected(false)
+    } finally {
+      setLoading(false)
     }
-
-    testConnection()
   }, [])
 
+  const testDatabaseRead = async () => {
+    setLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('count')
+        .limit(1)
+      
+      if (error) {
+        addResult({
+          success: false,
+          message: `데이터베이스 읽기 실패: ${error.message}`
+        })
+      } else {
+        addResult({
+          success: true,
+          message: 'users 테이블 접근 성공',
+          data: { count: data?.length || 0 }
+        })
+      }
+    } catch (error) {
+      addResult({
+        success: false,
+        message: `데이터베이스 읽기 중 오류: ${error instanceof Error ? error.message : String(error)}`
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const clearResults = () => {
+    setResults([])
+  }
+
+  useEffect(() => {
+    testConnection()
+  }, [testConnection])
+
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4">
-      <div className="max-w-2xl mx-auto">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-6">
-            Supabase Connection Test
-          </h1>
-          
-          <div className="space-y-4">
-            {/* Connection Status */}
-            <div className="flex items-center space-x-3">
-              <span className="font-medium">Connection Status:</span>
-              {connectionStatus === 'loading' && (
-                <span className="text-yellow-600">🔄 Testing...</span>
-              )}
-              {connectionStatus === 'connected' && (
-                <span className="text-green-600">✅ Connected</span>
-              )}
-              {connectionStatus === 'error' && (
-                <span className="text-red-600">❌ Error</span>
-              )}
-            </div>
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">Supabase 연결 테스트</h1>
+      
+      {/* 연결 상태 */}
+      <div className="mb-4 p-4 bg-blue-50 rounded">
+        <h2 className="text-lg font-semibold mb-2">연결 상태</h2>
+        <p className={`font-medium ${connected ? 'text-green-600' : 'text-red-600'}`}>
+          {connected ? '✅ 연결됨' : '❌ 연결되지 않음'}
+        </p>
+      </div>
 
-            {/* Project Info */}
-            {projectInfo && (
-              <div className="bg-green-50 border border-green-200 rounded p-4">
-                <h3 className="font-medium text-green-800 mb-2">Connection Details:</h3>
-                <ul className="text-sm text-green-700 space-y-1">
-                  <li>• Auth Status: {projectInfo.authSession}</li>
-                  <li>• Database: {projectInfo.databaseAccess}</li>
-                </ul>
+      {/* 테스트 버튼들 */}
+      <div className="mb-4 space-x-2">
+        <button
+          onClick={testConnection}
+          disabled={loading}
+          className="px-4 py-2 bg-blue-500 text-white rounded disabled:bg-gray-400"
+        >
+          {loading ? '테스트 중...' : '연결 테스트'}
+        </button>
+        <button
+          onClick={testDatabaseRead}
+          disabled={loading}
+          className="px-4 py-2 bg-green-500 text-white rounded disabled:bg-gray-400"
+        >
+          {loading ? '테스트 중...' : '데이터베이스 읽기 테스트'}
+        </button>
+        <button
+          onClick={clearResults}
+          disabled={loading}
+          className="px-4 py-2 bg-gray-500 text-white rounded disabled:bg-gray-400"
+        >
+          결과 지우기
+        </button>
+      </div>
+
+      {/* 테스트 결과 */}
+      <div className="space-y-2">
+        <h2 className="text-lg font-semibold">테스트 결과</h2>
+        {results.length === 0 ? (
+          <p className="text-gray-500">아직 테스트 결과가 없습니다.</p>
+        ) : (
+          <div className="space-y-2">
+            {results.map((result, index) => (
+              <div
+                key={index}
+                className={`p-3 rounded ${
+                  result.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                }`}
+              >
+                <p>{result.message}</p>
+                {result.data && (
+                  <pre className="mt-2 text-sm overflow-auto bg-gray-100 p-2 rounded">
+                    {JSON.stringify(result.data, null, 2)}
+                  </pre>
+                )}
               </div>
-            )}
-
-            {/* Error Details */}
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded p-4">
-                <h3 className="font-medium text-red-800 mb-2">Error Details:</h3>
-                <pre className="text-sm text-red-700 whitespace-pre-wrap">
-                  {error}
-                </pre>
-                <div className="mt-3 text-sm text-red-600">
-                  <p>Common issues:</p>
-                  <ul className="list-disc list-inside mt-1 space-y-1">
-                    <li>Check if NEXT_PUBLIC_SUPABASE_URL is correct</li>
-                    <li>Check if NEXT_PUBLIC_SUPABASE_ANON_KEY is correct</li>
-                    <li>Verify .env.local file exists and has correct values</li>
-                  </ul>
-                </div>
-              </div>
-            )}
-
-            {/* Environment Check */}
-            <div className="bg-blue-50 border border-blue-200 rounded p-4">
-              <h3 className="font-medium text-blue-800 mb-2">Environment Variables:</h3>
-              <ul className="text-sm text-blue-700 space-y-1">
-                <li>• Supabase URL: {process.env.NEXT_PUBLIC_SUPABASE_URL ? '✅ Set' : '❌ Missing'}</li>
-                <li>• Anon Key: {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '✅ Set' : '❌ Missing'}</li>
-              </ul>
-            </div>
+            ))}
           </div>
-        </div>
+        )}
       </div>
     </div>
   )

@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
   try {
     // Authorization 헤더에서 토큰 추출
     const authHeader = request.headers.get('authorization')
-    const token = extractBearerToken(authHeader || undefined)
+    const token = extractBearerToken(authHeader || null)
     
     if (!token) {
       return createErrorResponse('인증 토큰이 필요합니다.', 401)

@@ -2,11 +2,18 @@
 
 import { useState } from 'react'
 
-interface ApiResponse<T = any> {
+interface ApiResponse {
   success: boolean
-  data?: T
-  error?: string
+  data?: unknown
   message?: string
+  error?: string
+}
+
+interface ApiResult {
+  status?: number
+  statusText?: string
+  data?: ApiResponse
+  error?: string
 }
 
 export default function TestApiEndpoints() {
@@ -14,14 +21,14 @@ export default function TestApiEndpoints() {
   const [password, setPassword] = useState('Test123!@#')
   const [displayName, setDisplayName] = useState('테스트 사용자')
   const [accessToken, setAccessToken] = useState('')
-  const [results, setResults] = useState<{ [key: string]: any }>({})
+  const [results, setResults] = useState<{ [key: string]: ApiResult }>({})
   const [loading, setLoading] = useState<{ [key: string]: boolean }>({})
 
-  const apiCall = async (endpoint: string, method: string, body?: any, token?: string) => {
+  const apiCall = async (endpoint: string, method: string, body?: unknown, token?: string) => {
     setLoading(prev => ({ ...prev, [endpoint]: true }))
     
     try {
-      const headers: any = {
+      const headers: Record<string, string> = {
         'Content-Type': 'application/json'
       }
       
@@ -35,7 +42,7 @@ export default function TestApiEndpoints() {
         body: body ? JSON.stringify(body) : undefined
       })
       
-      const data = await response.json()
+      const data: ApiResponse = await response.json()
       
       setResults(prev => ({
         ...prev,
@@ -47,8 +54,11 @@ export default function TestApiEndpoints() {
       }))
       
       // 로그인 성공 시 토큰 저장
-      if (endpoint === '/api/auth/login' && data.success && data.data?.session?.access_token) {
-        setAccessToken(data.data.session.access_token)
+      if (endpoint === '/api/auth/login' && data.success && data.data && typeof data.data === 'object' && 'session' in data.data) {
+        const sessionData = data.data as { session?: { access_token?: string } }
+        if (sessionData.session?.access_token) {
+          setAccessToken(sessionData.session.access_token)
+        }
       }
       
     } catch (error) {
@@ -191,34 +201,29 @@ export default function TestApiEndpoints() {
       {/* 결과 표시 */}
       <div className="space-y-4">
         {Object.entries(results).map(([endpoint, result]) => (
-          <div key={endpoint} className="bg-white border-2 border-gray-200 rounded-lg p-6 shadow-md">
-            <h3 className="text-lg font-bold mb-3 text-black bg-gray-100 p-2 rounded-md">
-              {endpoint}
-            </h3>
+          <div key={endpoint} className="border rounded p-4 mb-4">
+            <h3 className="font-semibold mb-2">{endpoint}</h3>
+            <pre className="bg-gray-100 p-2 rounded text-sm overflow-auto">
+              {JSON.stringify(result, null, 2)}
+            </pre>
             
-            {result.error ? (
-              <div className="text-red-800 bg-red-100 border-2 border-red-300 p-4 rounded-md font-medium">
-                <strong>오류:</strong> {result.error}
+            {/* 결과 분석 */}
+            {result && typeof result === 'object' && 'status' in result && (
+              <div className="mt-2 text-sm">
+                <span className={`inline-block px-2 py-1 rounded text-white ${
+                  typeof result.status === 'number' && result.status >= 200 && result.status < 300 
+                    ? 'bg-green-500' 
+                    : 'bg-red-500'
+                }`}>
+                  {String(result.status)} {result && typeof result === 'object' && 'statusText' in result ? String(result.statusText) : ''}
+                </span>
               </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-black">상태:</span>
-                  <span className={`px-3 py-1 text-sm font-bold rounded-md ${
-                    result.status >= 200 && result.status < 300
-                      ? 'bg-green-200 text-green-900 border-2 border-green-400'
-                      : 'bg-red-200 text-red-900 border-2 border-red-400'
-                  }`}>
-                    {result.status} {result.statusText}
-                  </span>
-                </div>
-                
-                <div className="bg-gray-100 border-2 border-gray-300 p-4 rounded-md">
-                  <h4 className="text-sm font-bold text-black mb-2">응답 데이터:</h4>
-                  <pre className="text-sm text-black overflow-x-auto font-mono bg-white p-3 rounded border">
-                    {JSON.stringify(result.data, null, 2)}
-                  </pre>
-                </div>
+            )}
+            
+            {/* 에러 표시 */}
+            {result && typeof result === 'object' && 'error' in result && result.error && (
+              <div className="mt-2 text-red-600 text-sm">
+                오류: {String(result.error)}
               </div>
             )}
           </div>

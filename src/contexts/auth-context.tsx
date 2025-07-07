@@ -62,6 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return { error: null }
     } catch (error) {
+      console.error('Unexpected error during sign in:', error)
       return { error: 'An unexpected error occurred' }
     }
   }
@@ -79,15 +80,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return { error: null }
     } catch (error) {
+      console.error('Unexpected error during sign up:', error)
       return { error: 'An unexpected error occurred' }
     }
   }
 
   const signOut = async () => {
     try {
-      await supabase.auth.signOut()
+      const { error } = await supabase.auth.signOut()
+      if (error) {
+        console.error('Error signing out:', error)
+      }
     } catch (error) {
-      console.error('Error signing out:', error)
+      console.error('Unexpected error during sign out:', error)
     }
   }
 
@@ -103,6 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return { error: null }
     } catch (error) {
+      console.error('Unexpected error during password reset:', error)
       return { error: 'An unexpected error occurred' }
     }
   }

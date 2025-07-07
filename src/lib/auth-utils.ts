@@ -134,7 +134,10 @@ export function hasPermission(user: User | null, permission: string): boolean {
   // 현재는 기본 구현, 향후 권한 시스템 확장 시 수정
   if (!user) return false
   
-  // 기본적으로 로그인한 사용자는 모든 권한을 가짐
+  // TODO: 실제 권한 체크 로직 구현 예정
+  // 현재는 permission 파라미터를 무시하고 기본적으로 로그인한 사용자는 모든 권한을 가짐
+  console.debug('Permission check:', permission)
+  
   return true
 }
 
