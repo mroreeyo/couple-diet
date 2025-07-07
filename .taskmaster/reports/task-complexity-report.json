@@ -1,0 +1,21 @@
+{
+	"meta": {
+		"generatedAt": "2025-07-07T14:20:31.214Z",
+		"tasksAnalyzed": 1,
+		"totalTasks": 15,
+		"analysisCount": 1,
+		"thresholdScore": 5,
+		"projectName": "Taskmaster",
+		"usedResearch": true
+	},
+	"complexityAnalysis": [
+		{
+			"taskId": 4,
+			"taskTitle": "Develop Meal Upload Feature",
+			"complexityScore": 8,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Consider breaking down the task into the following subtasks: 1. Design API endpoint for meal uploads. 2. Implement image compression and optimization. 3. Integrate with Supabase storage. 4. Implement auto-setting of meal type based on time. 5. Conduct end-to-end testing of the upload feature.",
+			"reasoning": "The task involves multiple components such as API development, image processing, and integration with external storage, which increases complexity. Additionally, the task is high priority and dependent on another task, suggesting a need for careful planning and testing. The UX improvements mentioned, although not directly related, indicate a high standard for user experience, which adds to the complexity."
+		}
+	]
+}

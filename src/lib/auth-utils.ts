@@ -213,4 +213,36 @@ export function translateAuthError(error: string): string {
   }
 
   return translations[error] || error
+}
+
+/**
+ * Authorization 헤더에서 Bearer 토큰 추출
+ */
+export function extractBearerToken(authHeader: string | null): string | null {
+  if (!authHeader) return null
+  
+  const bearerPrefix = 'Bearer '
+  if (!authHeader.startsWith(bearerPrefix)) return null
+  
+  return authHeader.slice(bearerPrefix.length).trim()
+}
+
+/**
+ * JWT 토큰에서 사용자 정보 추출
+ */
+export async function getUserFromToken(token: string): Promise<User | null> {
+  try {
+    // Supabase JWT 토큰 검증
+    const { data: { user }, error } = await supabase.auth.getUser(token)
+    
+    if (error || !user) {
+      console.error('Token validation failed:', error?.message)
+      return null
+    }
+    
+    return user
+  } catch (error) {
+    console.error('Error validating token:', error)
+    return null
+  }
 } 
