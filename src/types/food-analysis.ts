@@ -121,18 +121,17 @@ export interface GeminiResponse {
 
 // 데이터베이스 저장용 타입 (확장됨)
 export interface MealAnalysisRecord {
-  id: string
-  user_id: string
-  image_url?: string
-  created_at?: string
-  total_calories: number
-  analysis_result: FoodAnalysisResult
-  analysis_metadata?: {
-    model_version: string
-    retry_count: number
-    api_calls_made: number
-  }
-  processing_time?: number
+  id: string;
+  user_id: string;
+  analysis_result: FoodAnalysisResult;
+  total_calories: number;
+  meal_type: string;
+  image_hash?: string;
+  processing_time?: number;
+  image_size?: number;
+  image_url?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 // 설정 타입

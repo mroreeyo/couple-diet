@@ -1,9 +1,9 @@
-import { MealAnalysisRecord } from '@/types/food-analysis'
-import Link from 'next/link'
-import Image from 'next/image'
+import Image from 'next/image';
+import Link from 'next/link';
+import { MealAnalysisRecord } from '@/types/food-analysis';
 
 interface MealCardProps {
-  meal: MealAnalysisRecord
+  meal: MealAnalysisRecord;
 }
 
 export function MealCard({ meal }: MealCardProps) {
@@ -13,12 +13,15 @@ export function MealCard({ meal }: MealCardProps) {
     month: 'long',
     day: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
   }).format(date)
 
   return (
     <Link href={`/meals/${meal.id}`}>
-      <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+      <div
+        data-testid={`meal-card-${meal.id}`}
+        className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
+      >
         {meal.image_url && (
           <div className="relative h-48 w-full">
             <Image
@@ -30,22 +33,23 @@ export function MealCard({ meal }: MealCardProps) {
           </div>
         )}
         <div className="p-4">
-          <p className="text-gray-500 text-sm mb-2">{formattedDate}</p>
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="font-medium">총 칼로리</span>
-              <span className="text-blue-600 font-semibold">
-                {Math.round(meal.total_calories)} kcal
-              </span>
-            </div>
-            {meal.analysis_result.foods && meal.analysis_result.foods.length > 0 && (
-              <p className="text-sm text-gray-600 line-clamp-2">
-                {meal.analysis_result.foods.map(f => f.name).join(', ')}
-              </p>
-            )}
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm text-gray-500">{formattedDate}</span>
+            <span className="text-sm font-medium text-blue-600 capitalize">{meal.meal_type}</span>
           </div>
+          <div className="flex justify-between items-center mb-2">
+            <span className="font-medium">총 칼로리</span>
+            <span className="text-blue-600 font-semibold">
+              {Math.round(meal.total_calories)} kcal
+            </span>
+          </div>
+          {meal.analysis_result.foods && meal.analysis_result.foods.length > 0 && (
+            <p className="text-sm text-gray-600 line-clamp-2">
+              {meal.analysis_result.foods.map(f => f.name).join(', ')}
+            </p>
+          )}
         </div>
       </div>
     </Link>
-  )
+  );
 } 

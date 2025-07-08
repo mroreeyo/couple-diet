@@ -62,7 +62,7 @@ export async function saveMealAnalysis(
       user_id: userId,
       analysis_result: analysisResult,
       total_calories: analysisResult.total_calories,
-      meal_type: analysisResult.meal_type,
+      meal_type: analysisResult.meal_type || 'other',
       image_hash: originalImageHash,
       processing_time: uploadResult?.totalUploadTime,
       image_size: uploadResult?.totalSize,
@@ -103,12 +103,16 @@ export async function getMealHistory({
   limit = 10,
   sortBy = 'created_at',
   sortOrder = 'desc',
+  startDate,
+  endDate,
 }: {
   userId: string
   includePartner?: boolean
   limit?: number
   sortBy?: string
   sortOrder?: 'asc' | 'desc'
+  startDate?: string
+  endDate?: string
 }): Promise<MealHistoryResponse> {
   try {
     let query = supabase
