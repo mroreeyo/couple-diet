@@ -91,84 +91,59 @@ export async function saveMealAnalysis(
   }
 }
 
-/**
- * 사용자의 식단 히스토리 조회
- */
-export async function getMealHistory(
-  options: MealHistoryQueryOptions
-): Promise<{
-  success: boolean;
-  data?: MealAnalysisRecord[];
-  total?: number;
-  error?: string;
-}> {
+export interface MealHistoryResponse {
+  success: boolean
+  data?: MealAnalysisRecord[]
+  error?: string
+}
+
+export async function getMealHistory({
+  userId,
+  includePartner = false,
+  limit = 10,
+  sortBy = 'created_at',
+  sortOrder = 'desc',
+}: {
+  userId: string
+  includePartner?: boolean
+  limit?: number
+  sortBy?: string
+  sortOrder?: 'asc' | 'desc'
+}): Promise<MealHistoryResponse> {
   try {
     let query = supabase
       .from('meals')
-      .select('*', { count: 'exact' });
+      .select('*')
+      .eq('user_id', userId)
+      .order(sortBy, { ascending: sortOrder === 'asc' })
+      .limit(limit)
 
-    // 사용자 필터
-    if (options.includePartner) {
-      // 커플 관계 확인 후 파트너 데이터도 포함
-      const { data: coupleData } = await supabase
-        .from('couples')
+    if (includePartner) {
+      const { data: userProfile } = await supabase
+        .from('user_profiles')
         .select('partner_id')
-        .eq('user_id', options.userId)
-        .eq('status', 'connected')
-        .single();
+        .eq('user_id', userId)
+        .single()
 
-      if (coupleData?.partner_id) {
-        query = query.in('user_id', [options.userId, coupleData.partner_id]);
-      } else {
-        query = query.eq('user_id', options.userId);
+      if (userProfile?.partner_id) {
+        query = query.or(`user_id.eq.${userId},user_id.eq.${userProfile.partner_id}`)
       }
-    } else {
-      query = query.eq('user_id', options.userId);
     }
 
-    // 날짜 범위 필터
-    if (options.startDate) {
-      query = query.gte('created_at', options.startDate);
-    }
-    if (options.endDate) {
-      query = query.lte('created_at', options.endDate);
-    }
-
-    // 식사 타입 필터
-    if (options.mealType) {
-      query = query.eq('meal_type', options.mealType);
-    }
-
-    // 정렬
-    const sortBy = options.sortBy || 'created_at';
-    const sortOrder = options.sortOrder || 'desc';
-    query = query.order(sortBy, { ascending: sortOrder === 'asc' });
-
-    // 페이징
-    if (options.limit) {
-      query = query.limit(options.limit);
-    }
-    if (options.offset) {
-      query = query.range(options.offset, (options.offset + (options.limit || 10)) - 1);
-    }
-
-    const { data, error, count } = await query;
+    const { data, error } = await query
 
     if (error) {
-      throw new Error(error.message);
+      console.error('Error fetching meal history:', error)
+      return { success: false, error: error.message }
     }
 
-    return {
-      success: true,
-      data: data || [],
-      total: count || 0
-    };
+    return { success: true, data: data || [] }
   } catch (error) {
-    console.error('Get meal history error:', error);
+    console.error('Error in getMealHistory:', error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    };
+      error: error instanceof Error ? error.message : '식사 기록을 불러오는데 실패했습니다.'
+    }
   }
 }
 
@@ -371,44 +346,25 @@ export async function getSharedMealsFromPartner(
   }
 }
 
-/**
- * 특정 식단 삭제
- */
-export async function deleteMeal(
-  userId: string,
-  mealId: string
-): Promise<{ success: boolean; error?: string }> {
+export async function deleteMeal(mealId: string): Promise<{ success: boolean; error: string | null }> {
   try {
-    // 해당 식단이 사용자의 것인지 확인
-    const { data: mealData, error: mealError } = await supabase
-      .from('meals')
-      .select('id, image_url')
-      .eq('id', mealId)
-      .eq('user_id', userId)
-      .single();
-
-    if (mealError || !mealData) {
-      throw new Error('삭제할 식단을 찾을 수 없습니다.');
-    }
-
-    // 데이터베이스에서 삭제
-    const { error: deleteError } = await supabase
+    const { error } = await supabase
       .from('meals')
       .delete()
       .eq('id', mealId)
-      .eq('user_id', userId);
 
-    if (deleteError) {
-      throw new Error(deleteError.message);
+    if (error) {
+      console.error('Error deleting meal:', error)
+      return { success: false, error: error.message }
     }
 
-    return { success: true };
+    return { success: true, error: null }
   } catch (error) {
-    console.error('Delete meal error:', error);
+    console.error('Error in deleteMeal:', error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    };
+      error: error instanceof Error ? error.message : '식사 기록을 삭제하는데 실패했습니다.'
+    }
   }
 }
 

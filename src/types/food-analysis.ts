@@ -1,34 +1,26 @@
 // Google Gemini Pro Vision API 기반 음식 분석 타입 정의
 
 export interface FoodItem {
-  name: string;
-  calories: number;
-  amount: string;
-  confidence: number;
-  // 추가된 영양성분 정보 (향후 확장용)
+  name: string
+  amount: string
+  calories: number
+  confidence: number
   nutrition?: {
-    protein?: number;
-    carbs?: number;
-    fat?: number;
-    fiber?: number;
-  };
+    protein?: number
+    carbs?: number
+    fat?: number
+    fiber?: number
+  }
 }
 
 export interface FoodAnalysisResult {
-  foods: FoodItem[];
-  total_calories: number;
-  meal_type?: 'breakfast' | 'lunch' | 'dinner' | 'snack';
-  analysis_confidence: number;
-  analyzed_at: string;
-  // 추가된 메타데이터
-  metadata?: {
-    processing_time_ms: number;
-    model_version: string;
-    image_quality_score?: number;
-    detected_objects_count: number;
-    retry_count?: number;
-    is_mock_data?: boolean;
-  };
+  foods: FoodItem[]
+  total_calories: number
+  meal_type?: string
+  analysis_confidence: number
+  nutritional_info?: {
+    [key: string]: string | number
+  }
 }
 
 export interface FoodAnalysisResponse {
@@ -129,24 +121,18 @@ export interface GeminiResponse {
 
 // 데이터베이스 저장용 타입 (확장됨)
 export interface MealAnalysisRecord {
-  id?: string;
-  user_id: string;
-  analysis_result: FoodAnalysisResult;
-  total_calories?: number;
-  meal_type?: string;
-  image_url?: string;
-  image_hash?: string; // 이미지 해시값 (중복 분석 방지)
-  processing_time?: number; // 처리 시간 (ms)
-  image_size?: number; // 이미지 크기 (bytes)
-  created_at?: string;
-  updated_at?: string;
-  // 추가된 분석 메타데이터
+  id: string
+  user_id: string
+  image_url?: string
+  created_at?: string
+  total_calories: number
+  analysis_result: FoodAnalysisResult
   analysis_metadata?: {
-    model_version: string;
-    confidence_score: number;
-    retry_count: number;
-    api_calls_made: number;
-  };
+    model_version: string
+    retry_count: number
+    api_calls_made: number
+  }
+  processing_time?: number
 }
 
 // 설정 타입
