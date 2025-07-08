@@ -54,10 +54,20 @@ export default function TestApiEndpoints() {
       }))
       
       // 로그인 성공 시 토큰 저장
-      if (endpoint === '/api/auth/login' && data.success && data.data && typeof data.data === 'object' && 'session' in data.data) {
-        const sessionData = data.data as { session?: { access_token?: string } }
-        if (sessionData.session?.access_token) {
-          setAccessToken(sessionData.session.access_token)
+      if (endpoint === '/api/auth/login' && data.success && data.data) {
+        console.log('로그인 응답 데이터:', data.data) // 디버깅용 로그
+        
+        const userData = data.data as any
+        if (userData.session?.access_token) {
+          console.log('=== 토큰 상세 정보 ===')
+          console.log('토큰 전체 길이:', userData.session.access_token.length)
+          console.log('토큰 세그먼트 수:', userData.session.access_token.split('.').length)
+          console.log('토큰 처음 50자:', userData.session.access_token.substring(0, 50))
+          console.log('토큰 마지막 50자:', userData.session.access_token.substring(userData.session.access_token.length - 50))
+          console.log('=====================')
+          setAccessToken(userData.session.access_token)
+        } else {
+          console.log('토큰을 찾을 수 없습니다. 세션 데이터:', userData.session) // 디버깅용 로그
         }
       }
       
@@ -150,14 +160,23 @@ export default function TestApiEndpoints() {
           </div>
         </div>
         
-        {accessToken && (
-          <div className="mt-6">
-            <label className="block text-sm font-bold text-black mb-2">현재 액세스 토큰</label>
-            <div className="text-sm text-black bg-yellow-100 border-2 border-yellow-300 p-3 rounded-md break-all font-mono">
-              {accessToken.substring(0, 50)}...
+        <div className="mt-6">
+          <label className="block text-sm font-bold text-black mb-2">액세스 토큰 상태</label>
+          {accessToken ? (
+            <div className="space-y-2">
+              <div className="text-sm text-green-700 bg-green-100 border-2 border-green-300 p-2 rounded-md font-bold">
+                ✅ 토큰이 로드되었습니다
+              </div>
+              <div className="text-xs text-black bg-yellow-100 border-2 border-yellow-300 p-3 rounded-md break-all font-mono">
+                {accessToken.substring(0, 50)}...
+              </div>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="text-sm text-red-700 bg-red-100 border-2 border-red-300 p-2 rounded-md font-bold">
+              ❌ 토큰 없음 - 로그인이 필요합니다
+            </div>
+          )}
+        </div>
       </div>
 
       {/* API 테스트 버튼들 */}
@@ -217,6 +236,30 @@ export default function TestApiEndpoints() {
                 }`}>
                   {String(result.status)} {result && typeof result === 'object' && 'statusText' in result ? String(result.statusText) : ''}
                 </span>
+              </div>
+            )}
+            
+            {/* 로그인 성공 시 토큰 정보 특별 표시 */}
+            {endpoint === '/api/auth/login' && result && typeof result === 'object' && 'data' in result && 
+             result.data && typeof result.data === 'object' && 'success' in result.data && result.data.success && 
+             'data' in result.data && result.data.data && typeof result.data.data === 'object' && 
+             'session' in result.data.data && (result.data.data as any).session && (
+              <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded">
+                <h4 className="text-sm font-bold text-green-800 mb-2">🔑 토큰 정보</h4>
+                <div className="text-xs text-green-700 space-y-1">
+                  <div>
+                    <strong>Access Token:</strong> 
+                    <span className="ml-1 font-mono bg-yellow-100 px-1 rounded">
+                      {((result.data.data as any).session.access_token || '없음').toString().substring(0, 30)}...
+                    </span>
+                  </div>
+                  <div>
+                    <strong>Token Type:</strong> Bearer
+                  </div>
+                  <div>
+                    <strong>Expires At:</strong> {((result.data.data as any).session.expires_at || '정보 없음').toString()}
+                  </div>
+                </div>
               </div>
             )}
             

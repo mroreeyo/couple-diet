@@ -1,5 +1,5 @@
 import { User } from '@supabase/supabase-js'
-import { supabase } from './supabase'
+import { supabase, createSupabaseAdmin } from './supabase'
 
 /**
  * 이메일 형식 검증
@@ -219,28 +219,57 @@ export function translateAuthError(error: string): string {
  * Authorization 헤더에서 Bearer 토큰 추출
  */
 export function extractBearerToken(authHeader: string | null): string | null {
-  if (!authHeader) return null
+  console.log('=== Token Extraction Debug ===')
+  console.log('Auth Header:', authHeader)
+  
+  if (!authHeader) {
+    console.log('No auth header provided')
+    return null
+  }
   
   const bearerPrefix = 'Bearer '
-  if (!authHeader.startsWith(bearerPrefix)) return null
+  if (!authHeader.startsWith(bearerPrefix)) {
+    console.log('Auth header does not start with Bearer')
+    return null
+  }
   
-  return authHeader.slice(bearerPrefix.length).trim()
+  const token = authHeader.slice(bearerPrefix.length).trim()
+  console.log('Extracted token length:', token.length)
+  console.log('Token segments count:', token.split('.').length)
+  console.log('Token first 30 chars:', token.substring(0, 30))
+  console.log('Token last 30 chars:', token.substring(token.length - 30))
+  console.log('==============================')
+  
+  return token
 }
 
 /**
- * JWT 토큰에서 사용자 정보 추출
+ * JWT 토큰에서 사용자 정보 추출 (서버 사이드 전용)
  */
 export async function getUserFromToken(token: string): Promise<User | null> {
   try {
-    // Supabase JWT 토큰 검증
-    const { data: { user }, error } = await supabase.auth.getUser(token)
-    
-    if (error || !user) {
-      console.error('Token validation failed:', error?.message)
-      return null
+    // 서버에서는 Admin 클라이언트를 사용해야 함
+    if (typeof window === 'undefined') {
+      const supabaseAdmin = createSupabaseAdmin()
+      const { data: { user }, error } = await supabaseAdmin.auth.getUser(token)
+      
+      if (error) {
+        console.error('Token validation failed:', error.message)
+        return null
+      }
+      
+      return user
+    } else {
+      // 클라이언트에서는 일반 클라이언트 사용
+      const { data: { user }, error } = await supabase.auth.getUser(token)
+      
+      if (error || !user) {
+        console.error('Token validation failed:', error?.message)
+        return null
+      }
+      
+      return user
     }
-    
-    return user
   } catch (error) {
     console.error('Error validating token:', error)
     return null

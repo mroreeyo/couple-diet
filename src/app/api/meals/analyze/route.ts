@@ -7,7 +7,7 @@ import {
   getClientIP,
   getUserAgent,
   logSecurityEvent,
-  validateEnvironmentVariables 
+  validateAIEnvironmentVariables 
 } from '@/lib/security';
 import { extractBearerToken, getUserFromToken } from '@/lib/auth-utils';
 import { 
@@ -44,6 +44,13 @@ const CONFIG: FoodAnalysisConfig = {
 
 // Gemini API 클라이언트 초기화
 function initializeGeminiClient(): GoogleGenerativeAI {
+  console.log('=== Google API Key Debug ===')
+  console.log('NODE_ENV:', process.env.NODE_ENV)
+  console.log('Google API Key exists:', !!process.env.GOOGLE_API_KEY)
+  console.log('Google API Key length:', process.env.GOOGLE_API_KEY?.length || 0)
+  console.log('Google API Key first 10 chars:', process.env.GOOGLE_API_KEY?.substring(0, 10) || 'N/A')
+  console.log('============================')
+  
   const apiKey = process.env.GOOGLE_API_KEY;
   if (!apiKey) {
     throw new Error('Google API Key가 설정되지 않았습니다.');
@@ -93,8 +100,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   let user = null;
 
   try {
-    // 1. 환경 변수 검증
-    const envValidation = validateEnvironmentVariables();
+    // 1. 환경 변수 검증 (AI 기능용)
+    const envValidation = validateAIEnvironmentVariables();
     if (!envValidation.isValid) {
       throw new Error(`환경 변수 누락: ${envValidation.errors.join(', ')}`);
     }
@@ -321,7 +328,7 @@ async function analyzeImageWithGemini(
 ): Promise<FoodAnalysisResult> {
   try {
     const genAI = initializeGeminiClient();
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro-vision' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
 
     // Gemini API 요청 구성
     const imagePart = {
@@ -405,10 +412,53 @@ async function analyzeImageWithGemini(
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     
-    // 재시도 로직
-    if (retryCount < CONFIG.retryAttempts && !errorMessage.includes('timeout')) {
+    // Google API 할당량 초과시 Mock 데이터 반환 (개발 환경)
+    if (process.env.NODE_ENV === 'development' && 
+        (errorMessage.includes('429') || errorMessage.includes('quota') || errorMessage.includes('exceeded'))) {
+      console.warn('⚠️  Google API 할당량 초과 - Mock 데이터 반환');
+      
+      // 임시 Mock 분석 결과
+      const mockResult: FoodAnalysisResult = {
+        foods: [
+          {
+            name: "김치찌개",
+            calories: 280,
+            amount: "1인분 (약 200g)",
+            confidence: 0.85
+          },
+          {
+            name: "흰쌀밥",
+            calories: 210,
+            amount: "1공기 (약 150g)",
+            confidence: 0.90
+          },
+          {
+            name: "김치",
+            calories: 25,
+            amount: "반찬 (약 50g)",
+            confidence: 0.75
+          }
+        ],
+        total_calories: 515,
+        meal_type: "lunch",
+        analysis_confidence: 0.83,
+        analyzed_at: new Date().toISOString()
+      };
+      
+      return mockResult;
+    }
+    
+    // 재시도 로직 - 과부하 상황 특별 처리
+    if (retryCount < CONFIG.retryAttempts && !errorMessage.includes('timeout') && !errorMessage.includes('429')) {
+      // 과부하 상황 감지
+      const isOverloaded = errorMessage.includes('overloaded') || errorMessage.includes('503');
+      const baseDelay = isOverloaded ? 5000 : 1000; // 과부하시 5초, 일반시 1초
+      const exponentialDelay = baseDelay * Math.pow(2, retryCount); // 지수적 증가
+      
       console.log(`Retrying Gemini API call (${retryCount + 1}/${CONFIG.retryAttempts})...`);
-      await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+      console.log(`Waiting ${exponentialDelay}ms before retry (${isOverloaded ? 'overload detected' : 'normal retry'})`);
+      
+      await new Promise(resolve => setTimeout(resolve, exponentialDelay));
       return analyzeImageWithGemini(processedImage, retryCount + 1);
     }
 

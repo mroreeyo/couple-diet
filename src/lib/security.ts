@@ -310,7 +310,7 @@ export function logSecurityAudit(action: string, userId?: string, data?: Record<
 }
 
 /**
- * 환경 변수 검증
+ * 기본 환경 변수 검증 (인증 관련)
  */
 export function validateEnvironmentVariables(): { isValid: boolean; errors: string[] } {
   const errors: string[] = []
@@ -329,6 +329,30 @@ export function validateEnvironmentVariables(): { isValid: boolean; errors: stri
   // URL 형식 검증
   if (process.env.NEXT_PUBLIC_SUPABASE_URL && !validator.isURL(process.env.NEXT_PUBLIC_SUPABASE_URL)) {
     errors.push('NEXT_PUBLIC_SUPABASE_URL must be a valid URL')
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  }
+}
+
+/**
+ * AI 기능용 환경 변수 검증 (Google API Key 포함)
+ */
+export function validateAIEnvironmentVariables(): { isValid: boolean; errors: string[] } {
+  const baseValidation = validateEnvironmentVariables()
+  if (!baseValidation.isValid) {
+    return baseValidation
+  }
+  
+  const errors: string[] = []
+  
+  // Google API Key 검증
+  if (!process.env.GOOGLE_API_KEY) {
+    errors.push('Missing required environment variable: GOOGLE_API_KEY')
+  } else if (process.env.GOOGLE_API_KEY.length < 30) {
+    errors.push('GOOGLE_API_KEY appears to be invalid (too short)')
   }
   
   return {

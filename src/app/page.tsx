@@ -83,6 +83,12 @@ export default function Home() {
               >
                 API 테스트
               </Link>
+              <Link
+                href="/test-meal-analysis"
+                className="text-sm text-blue-600 hover:text-blue-700 px-3 py-1 bg-blue-50 hover:bg-blue-100 rounded"
+              >
+                🧪 AI 음식 분석 테스트
+              </Link>
             </div>
           </div>
         </div>
