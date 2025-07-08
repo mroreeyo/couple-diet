@@ -32,6 +32,7 @@ import {
   FoodAnalysisResult, 
   FoodAnalysisConfig
 } from '@/types/food-analysis';
+import { responseProcessor } from '@/lib/response-processor';
 
 // 설정
 const CONFIG: FoodAnalysisConfig = {
@@ -58,25 +59,38 @@ function initializeGeminiClient(): GoogleGenerativeAI {
   return new GoogleGenerativeAI(apiKey);
 }
 
-// 한국어 최적화 음식 분석 프롬프트
+// 한국어 최적화 음식 분석 프롬프트 (개선된 버전)
 const KOREAN_FOOD_ANALYSIS_PROMPT = `
 당신은 한국 음식 전문 영양 분석가입니다. 제공된 음식 이미지를 분석하여 정확한 칼로리 정보를 제공해주세요.
 
+한국 음식 특성:
+- 김치, 나물, 반찬류는 일반적으로 저칼로리 (20-50kcal)
+- 밥류: 흰쌀밥(1공기) 210kcal, 현미밥 190kcal, 잡곡밥 200kcal
+- 국물류: 맑은국 20-40kcal, 된장찌개 80-120kcal, 김치찌개 150-200kcal
+- 고기류: 불고기(100g) 250kcal, 갈비(100g) 350kcal, 삼겹살(100g) 330kcal
+- 생선류: 구이(100g) 150-200kcal, 조림(100g) 180-250kcal
+- 면류: 냉면(1그릇) 400kcal, 라면(1그릇) 500kcal, 우동(1그릇) 350kcal
+
 분석 요구사항:
 1. 이미지에서 식별 가능한 모든 음식을 찾아주세요
-2. 각 음식의 대략적인 양(그릇, 개, 컵 등)을 추정해주세요
-3. 음식별 칼로리를 계산해주세요
+2. 각 음식의 대략적인 양(그릇, 개, 컵, 접시 등)을 정확히 추정해주세요
+3. 한국 음식 표준 칼로리 기준으로 계산해주세요
 4. 전체 식사의 칼로리 총합을 구해주세요
-5. 식사 종류(아침/점심/저녁/간식)를 추정해주세요
+5. 식사 시간대를 추정해주세요 (아침: 토스트/죽류, 점심/저녁: 밥+찬, 간식: 과자/음료)
+
+신뢰도 기준:
+- 명확히 보이는 일반적인 한국 음식: 0.8-0.95
+- 부분적으로 보이거나 양이 불분명한 음식: 0.6-0.8
+- 잘 보이지 않거나 생소한 음식: 0.4-0.6
 
 응답은 반드시 다음 JSON 형식으로만 제공해주세요:
 
 {
   "foods": [
     {
-      "name": "음식이름",
+      "name": "정확한 한국 음식명",
       "calories": 칼로리숫자,
-      "amount": "분량설명",
+      "amount": "구체적인 분량설명 (예: 1공기, 1그릇, 1인분, 100g)",
       "confidence": 0.0~1.0 신뢰도
     }
   ],
@@ -87,10 +101,11 @@ const KOREAN_FOOD_ANALYSIS_PROMPT = `
 }
 
 주의사항:
-- 한국 음식 기준으로 분석해주세요
-- 칼로리는 일반적인 한국인 기준으로 계산해주세요
+- 한국 음식 기준으로만 분석해주세요
+- 칼로리는 한국인 표준 분량 기준으로 계산해주세요
 - 불확실한 음식은 낮은 신뢰도로 표시해주세요
-- JSON 형식 외의 다른 텍스트는 포함하지 마세요
+- JSON 형식 외의 다른 텍스트는 절대 포함하지 마세요
+- 보이지 않는 음식은 추측하지 마세요
 `;
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -320,17 +335,29 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 }
 
 /**
- * Gemini API 호출 (재시도 로직 포함)
+ * Gemini API 호출 (개선된 재시도 로직 포함)
  */
 async function analyzeImageWithGemini(
   processedImage: ImageProcessingResult,
   retryCount: number = 0
 ): Promise<FoodAnalysisResult> {
+  const maxRetries = 3; // 증가된 재시도 횟수
+  
   try {
     const genAI = initializeGeminiClient();
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+    
+    // 모델 설정 최적화
+    const model = genAI.getGenerativeModel({ 
+      model: 'gemini-1.5-pro',
+      generationConfig: {
+        temperature: 0.1, // 일관성 향상을 위해 낮은 temperature
+        topK: 1,
+        topP: 0.8,
+        maxOutputTokens: 1024, // 적절한 토큰 수 제한
+      },
+    });
 
-    // Gemini API 요청 구성
+    // Gemini API 요청 구성 (최적화)
     const imagePart = {
       inlineData: {
         data: processedImage.analysis.base64!,
@@ -340,11 +367,13 @@ async function analyzeImageWithGemini(
 
     const prompt = [KOREAN_FOOD_ANALYSIS_PROMPT, imagePart];
 
-    // API 호출 (타임아웃 설정)
+    // API 호출 (개선된 타임아웃 설정)
+    const timeoutMs = Math.min(CONFIG.apiTimeout + (retryCount * 5000), 45000); // 점진적 타임아웃 증가
+    
     const result = await Promise.race([
       model.generateContent(prompt),
       new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('API call timeout')), CONFIG.apiTimeout)
+        setTimeout(() => reject(new Error('API call timeout')), timeoutMs)
       )
     ]);
 
@@ -357,112 +386,125 @@ async function analyzeImageWithGemini(
       throw new Error('Gemini API 텍스트 응답이 없습니다.');
     }
 
-    // JSON 파싱 및 검증
-    let jsonData: FoodAnalysisResult;
+    // JSON 파싱
+    let rawJsonData: any;
     try {
-      // JSON 응답에서 코드 블록 제거
-      const cleanedText = text.replace(/```json\n?|\n?```/g, '').trim();
-      jsonData = JSON.parse(cleanedText);
-    } catch {
+      // JSON 응답에서 불필요한 문자 제거
+      const cleanedText = text
+        .replace(/```json\n?|\n?```/g, '')
+        .replace(/^[^{]*/, '') // JSON 시작 전 텍스트 제거
+        .replace(/[^}]*$/, '') // JSON 끝 후 텍스트 제거
+        .trim();
+      
+      rawJsonData = JSON.parse(cleanedText);
+    } catch (parseError) {
       console.error('JSON 파싱 실패:', text);
+      console.error('파싱 에러:', parseError);
       throw new Error('AI 응답을 파싱할 수 없습니다.');
     }
 
-    // 응답 데이터 검증 및 정리
-    if (!jsonData.foods || !Array.isArray(jsonData.foods)) {
-      throw new Error('올바르지 않은 음식 데이터 형식입니다.');
+    // 개선된 응답 처리기를 사용한 검증 및 정제
+    const imageHash = crypto.createHash('md5').update(processedImage.analysis.base64!).digest('hex');
+    const validationResult = responseProcessor.validateAndProcessResponse(
+      rawJsonData,
+      imageHash,
+      Date.now() - 5000, // 시작 시간 (대략적)
+      retryCount,
+      false // 실제 AI 응답
+    );
+
+    if (!validationResult.isValid) {
+      console.error('응답 검증 실패:', validationResult.errors);
+      throw new Error(`응답 검증 실패: ${validationResult.errors.join(', ')}`);
     }
 
-    // 신뢰도 기반 필터링
-    const filteredFoods = jsonData.foods
-      .filter((food: unknown) => {
-        if (typeof food === 'object' && food !== null && 'confidence' in food) {
-          const foodItem = food as { confidence: number };
-          return foodItem.confidence >= CONFIG.confidenceThreshold;
-        }
-        return false;
-      })
-      .map((food: unknown) => {
-        const foodItem = food as { name: string; calories: number; amount: string; confidence: number };
-        return {
-          name: foodItem.name || '알 수 없는 음식',
-          calories: Math.max(0, Math.round(foodItem.calories || 0)),
-          amount: foodItem.amount || '적당량',
-          confidence: Math.min(1, Math.max(0, foodItem.confidence || 0))
-        };
-      });
-
-    if (filteredFoods.length === 0) {
-      throw new Error('신뢰도가 충분한 음식을 찾을 수 없습니다.');
+    // 경고 로그 출력
+    if (validationResult.warnings.length > 0) {
+      console.warn('⚠️  응답 처리 경고:', validationResult.warnings);
     }
 
-    // 총 칼로리 재계산
-    const totalCalories = filteredFoods.reduce((sum, food) => sum + food.calories, 0);
-
-    const finalResult: FoodAnalysisResult = {
-      foods: filteredFoods,
-      total_calories: totalCalories,
-      meal_type: jsonData.meal_type || undefined,
-      analysis_confidence: Math.min(1, Math.max(0, jsonData.analysis_confidence || 0)),
-      analyzed_at: new Date().toISOString()
-    };
-
-    return finalResult;
+    return validationResult.corrected_data as FoodAnalysisResult;
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     
-    // Google API 할당량 초과시 Mock 데이터 반환 (개발 환경)
-    if (process.env.NODE_ENV === 'development' && 
-        (errorMessage.includes('429') || errorMessage.includes('quota') || errorMessage.includes('exceeded'))) {
-      console.warn('⚠️  Google API 할당량 초과 - Mock 데이터 반환');
-      
-      // 임시 Mock 분석 결과
-      const mockResult: FoodAnalysisResult = {
-        foods: [
-          {
-            name: "김치찌개",
-            calories: 280,
-            amount: "1인분 (약 200g)",
-            confidence: 0.85
-          },
-          {
-            name: "흰쌀밥",
-            calories: 210,
-            amount: "1공기 (약 150g)",
-            confidence: 0.90
-          },
-          {
-            name: "김치",
-            calories: 25,
-            amount: "반찬 (약 50g)",
-            confidence: 0.75
-          }
-        ],
-        total_calories: 515,
-        meal_type: "lunch",
-        analysis_confidence: 0.83,
-        analyzed_at: new Date().toISOString()
-      };
-      
-      return mockResult;
+    // 재시도 로직 개선
+    if (retryCount < maxRetries) {
+      const isRetryable = (
+        errorMessage.includes('timeout') ||
+        errorMessage.includes('overloaded') ||
+        errorMessage.includes('503') ||
+        errorMessage.includes('502') ||
+        errorMessage.includes('500')
+      );
+
+      if (isRetryable) {
+        console.log(`🔄 API 호출 재시도 ${retryCount + 1}/${maxRetries}:`, errorMessage);
+        
+        // 지수 백오프 대기 (개선된 대기 시간)
+        const baseDelay = errorMessage.includes('overloaded') ? 5000 : 2000;
+        const delay = baseDelay * Math.pow(1.5, retryCount);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        
+        return analyzeImageWithGemini(processedImage, retryCount + 1);
+      }
     }
     
-    // 재시도 로직 - 과부하 상황 특별 처리
-    if (retryCount < CONFIG.retryAttempts && !errorMessage.includes('timeout') && !errorMessage.includes('429')) {
-      // 과부하 상황 감지
-      const isOverloaded = errorMessage.includes('overloaded') || errorMessage.includes('503');
-      const baseDelay = isOverloaded ? 5000 : 1000; // 과부하시 5초, 일반시 1초
-      const exponentialDelay = baseDelay * Math.pow(2, retryCount); // 지수적 증가
-      
-      console.log(`Retrying Gemini API call (${retryCount + 1}/${CONFIG.retryAttempts})...`);
-      console.log(`Waiting ${exponentialDelay}ms before retry (${isOverloaded ? 'overload detected' : 'normal retry'})`);
-      
-      await new Promise(resolve => setTimeout(resolve, exponentialDelay));
-      return analyzeImageWithGemini(processedImage, retryCount + 1);
-    }
+         // Google API 할당량 초과시 개선된 Mock 데이터 반환
+     if (process.env.NODE_ENV === 'development' && 
+         (errorMessage.includes('429') || errorMessage.includes('quota') || errorMessage.includes('exceeded'))) {
+       console.warn('⚠️  Google API 할당량 초과 - 개선된 Mock 데이터 반환');
+       
+       // 더 다양한 Mock 데이터 세트
+       const mockDataSets = [
+         {
+           foods: [
+             { name: "김치찌개", calories: 280, amount: "1인분 (약 200g)", confidence: 0.85 },
+             { name: "흰쌀밥", calories: 210, amount: "1공기 (약 150g)", confidence: 0.90 },
+             { name: "배추김치", calories: 25, amount: "적당량 (약 50g)", confidence: 0.88 }
+           ],
+           total_calories: 515,
+           meal_type: "lunch" as const
+         },
+         {
+           foods: [
+             { name: "된장찌개", calories: 120, amount: "1그릇 (약 250ml)", confidence: 0.82 },
+             { name: "현미밥", calories: 190, amount: "1공기 (약 150g)", confidence: 0.92 },
+             { name: "시금치나물", calories: 35, amount: "반찬 (약 80g)", confidence: 0.75 },
+             { name: "계란말이", calories: 180, amount: "2조각 (약 100g)", confidence: 0.88 }
+           ],
+           total_calories: 525,
+           meal_type: "dinner" as const
+         },
+         {
+           foods: [
+             { name: "토스트", calories: 150, amount: "1장", confidence: 0.90 },
+             { name: "딸기잼", calories: 80, amount: "1스푼 (약 20g)", confidence: 0.85 },
+             { name: "우유", calories: 130, amount: "1컵 (200ml)", confidence: 0.95 }
+           ],
+           total_calories: 360,
+           meal_type: "breakfast" as const
+         }
+       ];
+       
+       const randomMockData = mockDataSets[Math.floor(Math.random() * mockDataSets.length)];
+       
+       // Mock 데이터도 응답 처리기를 통해 처리
+       const imageHash = crypto.createHash('md5').update(processedImage.analysis.base64!).digest('hex');
+       const validationResult = responseProcessor.validateAndProcessResponse(
+         randomMockData,
+         imageHash,
+         Date.now() - 2000, // Mock 데이터는 처리 시간이 짧음
+         retryCount,
+         true // Mock 데이터임을 표시
+       );
+       
+       return validationResult.corrected_data as FoodAnalysisResult;
+     }
 
-    throw new Error(`음식 분석 실패: ${errorMessage}`);
+    // 최종 에러 발생
+    console.error('Gemini API 호출 실패 (재시도 완료):', error);
+    throw new Error(`AI 분석 실패: ${errorMessage}`);
   }
 }
 

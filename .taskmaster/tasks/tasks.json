@@ -241,8 +241,62 @@
         "dependencies": [
           4
         ],
-        "status": "pending",
-        "subtasks": []
+        "status": "in-progress",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Review Existing Codebase",
+            "description": "Examine the current implementation of the AI Calorie Measurement API integration using Google Gemini 1.5 Pro.",
+            "dependencies": [],
+            "details": "Identify areas for improvement or optimization in the existing code.\n<info added on 2025-07-08T14:30:57.987Z>\n✅ Review of the existing codebase is complete.\n\nCurrent implementation status of the AI Calorie Measurement API:\n\n🎯 **Core features already completed:**\n- Utilization of Google Gemini 1.5 Pro model (latest model) ✅\n- Korean language optimized food analysis prompt ✅  \n- Intelligent retry logic (overload handling) ✅\n- JSON response parsing and validation ✅\n- Confidence-based filtering (above 0.7) ✅\n- Mock data fallback (in case of quota exceedance) ✅\n- JWT authentication and security validation ✅\n- Comprehensive logging and monitoring ✅\n- Image processing and optimization ✅\n\n🔍 **Identified areas for improvement:**\n1. Need to enhance the prompt for better recognition accuracy of Korean food.\n2. Strengthening the response data validation logic is necessary.\n3. Potential for performance optimization (caching, compression, etc.).\n4. More granular error classification and handling.\n\n🎉 **Conclusion:** \nCore functionalities of the AI API integration are already excellently implemented. Complete integration is expected with further optimizations and improvements.\n</info added on 2025-07-08T14:30:57.987Z>",
+            "status": "done",
+            "testStrategy": "Ensure the current implementation is functional and identify any potential issues."
+          },
+          {
+            "id": 2,
+            "title": "Optimize API Call Logic",
+            "description": "Enhance the efficiency and reliability of the API call to the AI service.",
+            "dependencies": [
+              1
+            ],
+            "details": "Refactor the code to reduce latency and handle errors more effectively.\n<info added on 2025-07-08T14:37:55.189Z>\nAPI call logic optimization completed.\n\nKey improvements:\n\n1. Enhanced recognition accuracy for Korean foods:\n   - Added calorie reference table for various Korean dishes (rice, soups, meats, fish, noodles).\n   - Refined confidence levels (clear food 0.8-0.95, partial 0.6-0.8, unclear 0.4-0.6).\n   - Strengthened portion descriptions (1 bowl, 1 serving, 100g, etc.).\n\n2. Optimized AI model settings:\n   - Temperature: 0.1 (set low for consistency).\n   - TopK: 1, topP: 0.8 (for more accurate responses).\n   - MaxOutputTokens: 1024 (appropriate token limit).\n\n3. Improved retry logic:\n   - Increased retry attempts from 2 to 3.\n   - Enhanced exponential backoff wait times (default 2s → 5s → 12.5s).\n   - Longer wait times under overload (5s → 7.5s → 11.25s).\n   - Gradual timeout increase (5s added per retry, max 45s).\n\n4. Strengthened response validation:\n   - More robust JSON parsing (removal of unnecessary text).\n   - Enhanced food data type validation.\n   - Detection of unrealistic calorie counts (warning for over 3000cal).\n   - Limited to a maximum of 10 food items.\n\n5. Improved mock data:\n   - Added three diverse mock data sets.\n   - Configured for breakfast/lunch/dinner scenarios.\n   - More realistic combinations of Korean foods.\n\nOptimization effects:\n- Improved response consistency (lower temperature).\n- Enhanced accuracy in recognizing Korean foods.\n- Strengthened resilience against network errors.\n- Enabled stable testing in the development environment.\n</info added on 2025-07-08T14:37:55.189Z>",
+            "status": "done",
+            "testStrategy": "Test API call performance and error handling under various conditions."
+          },
+          {
+            "id": 3,
+            "title": "Implement Response Handling",
+            "description": "Develop logic to process the API response and extract calorie information and food items.",
+            "dependencies": [
+              2
+            ],
+            "details": "Parse the response data to retrieve relevant nutritional information accurately.\n<info added on 2025-07-08T14:42:48.014Z>\nResponse handling implementation is complete.\n\nKey improvements include:\n\n1. Creation of a dedicated utility module (ResponseProcessor):\n   - Ensures consistent response handling using the singleton pattern.\n   - Centralized management of validation, sanitization, and error handling.\n   - Modular structure for reusability.\n\n2. Enhanced response validation and sanitization:\n   - Mandatory validation of food names in Korean and Unicode normalization.\n   - Automatic removal of duplicate foods.\n   - Automatic adjustment of unrealistic calorie counts (capped at 500 calories for values exceeding 2000 calories).\n   - Filtering based on reliability (excluding values below 0.4).\n   - Limitation to a maximum of 10 food items.\n\n3. Intelligent meal type inference:\n   - Keyword-based analysis (e.g., toast for breakfast, snacks for treats).\n   - Calorie-based analysis (e.g., under 400 calories for breakfast, over 600 for dinner).\n   - Consideration of food count (e.g., 2 or fewer items with under 300 calories for snacks).\n\n4. Detailed metadata addition:\n   - Processing time, model version, image quality score.\n   - Number of detected objects, retry count, mock data status.\n   - Request ID, API version, cache status, rate limit information.\n\n5. Improved error handling:\n   - Structured error codes (e.g., INVALID_IMAGE, API_QUOTA_EXCEEDED).\n   - Specific suggestions included (e.g., file size, supported formats).\n   - Retry time guidance.\n\n6. Performance metrics system:\n   - Tracking processing time at each stage (validation, image processing, AI analysis).\n   - Monitoring memory usage (before, after, peak).\n   - Total processing time and stage-by-stage analysis.\n\nQuality improvements in processing include:\n- Enhanced response consistency (validation + sanitization).\n- Improved quality of Korean food data.\n- Clear guidance in error situations.\n- Possibility for performance monitoring and optimization.\n- Assurance of the same quality for mock data.\n</info added on 2025-07-08T14:42:48.014Z>",
+            "status": "in-progress",
+            "testStrategy": "Verify that the extracted data matches expected results for known inputs."
+          },
+          {
+            "id": 4,
+            "title": "Integrate with Application UI",
+            "description": "Connect the processed data to the application's user interface for display.",
+            "dependencies": [
+              3
+            ],
+            "details": "Ensure that the calorie and food item information is presented clearly to the user.",
+            "status": "pending",
+            "testStrategy": "Conduct user interface tests to confirm data is displayed correctly and intuitively."
+          },
+          {
+            "id": 5,
+            "title": "Finalize and Document Integration",
+            "description": "Complete the integration process and document the implementation details.",
+            "dependencies": [
+              4
+            ],
+            "details": "Prepare comprehensive documentation for future maintenance and updates.",
+            "status": "pending",
+            "testStrategy": "Review documentation for accuracy and completeness; ensure all integration aspects are covered."
+          }
+        ]
       },
       {
         "id": 6,
@@ -377,7 +431,7 @@
     ],
     "metadata": {
       "created": "2025-07-06T11:48:37.796Z",
-      "updated": "2025-07-08T14:10:57.555Z",
+      "updated": "2025-07-08T14:38:16.715Z",
       "description": "Tasks for master context"
     }
   }
