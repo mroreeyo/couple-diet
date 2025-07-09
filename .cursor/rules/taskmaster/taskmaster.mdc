@@ -543,10 +543,12 @@ Environment variables are used **only** for sensitive API keys related to AI pro
     *   `OPENAI_API_KEY`
     *   `GOOGLE_API_KEY`
     *   `MISTRAL_API_KEY`
+    *   `AZURE_OPENAI_API_KEY` (Requires `AZURE_OPENAI_ENDPOINT` too)
     *   `OPENROUTER_API_KEY`
     *   `XAI_API_KEY`
     *   `OLLAMA_API_KEY` (Requires `OLLAMA_BASE_URL` too)
 *   **Endpoints (Optional/Provider Specific inside .taskmaster/config.json):**
+    *   `AZURE_OPENAI_ENDPOINT`
     *   `OLLAMA_BASE_URL` (Default: `http://localhost:11434/api`)
 
 **Set API keys** in your **`.env`** file in the project root (for CLI use) or within the `env` section of your **`.cursor/mcp.json`** file (for MCP/Cursor integration). All other settings (model choice, max tokens, temperature, log level, custom endpoints) are managed in `.taskmaster/config.json` via `task-master models` command or `models` MCP tool.

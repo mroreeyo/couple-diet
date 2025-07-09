@@ -5,21 +5,30 @@ export interface FoodItem {
   amount: string
   calories: number
   confidence: number
-  nutrition?: {
-    protein?: number
-    carbs?: number
-    fat?: number
-    fiber?: number
-  }
 }
 
 export interface FoodAnalysisResult {
-  foods: FoodItem[]
   total_calories: number
-  meal_type?: string
+  meal_type: string | null
   analysis_confidence: number
+  foods: FoodItem[]
+  image_url?: string
+  thumbnail_url?: string
+  analyzed_at?: string
   nutritional_info?: {
-    [key: string]: string | number
+    [key: string]: number | string
+  }
+  metadata?: {
+    processing_time_ms?: number;
+    model_version?: string;
+    image_quality_score?: number;
+    detected_objects?: number;
+    retry_count?: number;
+    is_mock_data?: boolean;
+    request_id?: string;
+    api_version?: string;
+    cache_hit?: boolean;
+    rate_limit_remaining?: number;
   }
 }
 

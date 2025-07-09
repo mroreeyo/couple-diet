@@ -241,7 +241,7 @@
         "dependencies": [
           4
         ],
-        "status": "in-progress",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -282,7 +282,7 @@
               3
             ],
             "details": "Ensure that the calorie and food item information is presented clearly to the user.",
-            "status": "in-progress",
+            "status": "done",
             "testStrategy": "Conduct user interface tests to confirm data is displayed correctly and intuitively."
           },
           {
@@ -293,7 +293,7 @@
               4
             ],
             "details": "Prepare comprehensive documentation for future maintenance and updates.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Review documentation for accuracy and completeness; ensure all integration aspects are covered."
           }
         ]
@@ -304,12 +304,67 @@
         "description": "Implement logic to verify daily meal uploads based on specified time slots.",
         "details": "Develop a system to restrict uploads to one per time slot (breakfast, lunch, dinner) and alert users if they attempt to upload outside these times.",
         "testStrategy": "Test the meal verification logic by attempting to upload meals at various times and ensuring restrictions are enforced.",
-        "priority": "medium",
+        "priority": "high",
         "dependencies": [
           5
         ],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement Time Slot Restriction Logic",
+            "description": "Develop logic to restrict meal uploads to specific time slots: breakfast (5-11 AM), lunch (11 AM-5 PM), and dinner (5-11 PM).",
+            "dependencies": [],
+            "details": "Create a function that checks the current time and determines if it falls within the allowed time slots for meal uploads.\n<info added on 2025-07-09T14:09:46.359Z>\nTask 6.1 \"Implement Time Slot Restriction Logic\" has been completed. The implementation includes a new file `src/lib/meal-validation.ts` for the time slot restriction logic and a test UI page at `src/app/test-meal-validation/page.tsx`. Key functionalities include setting meal time restrictions, validating meal upload times, and providing user-friendly error messages. All time restrictions have been verified to work correctly, and there are no TypeScript compilation errors. The next step is to proceed with Task 6.2 \"Implement Database Validation for Duplicate Prevention.\"\n</info added on 2025-07-09T14:09:46.359Z>",
+            "status": "done",
+            "testStrategy": "Test the function with various timestamps to ensure it correctly identifies valid and invalid time slots."
+          },
+          {
+            "id": 2,
+            "title": "Database Validation for Duplicate Uploads",
+            "description": "Ensure that users cannot upload more than one meal per time slot by implementing database validation.",
+            "dependencies": [
+              1
+            ],
+            "details": "Add a database constraint or logic to check for existing uploads within the same time slot before allowing a new upload.",
+            "status": "pending",
+            "testStrategy": "Attempt multiple uploads within the same time slot and verify that only the first upload is accepted."
+          },
+          {
+            "id": 3,
+            "title": "API Level Validation and Restriction",
+            "description": "Integrate the time slot and duplicate upload logic into the API to enforce restrictions at the server level.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Modify the API endpoint handling meal uploads to include checks for time slot validity and duplicate uploads.",
+            "status": "pending",
+            "testStrategy": "Use API testing tools to simulate uploads at different times and verify the correct responses are returned."
+          },
+          {
+            "id": 4,
+            "title": "User Notification and Error Messaging",
+            "description": "Develop a system to alert users with appropriate messages when they attempt to upload meals outside allowed times or duplicate uploads.",
+            "dependencies": [
+              3
+            ],
+            "details": "Implement a notification system that provides clear error messages and guidance to users when their upload attempts are invalid.",
+            "status": "pending",
+            "testStrategy": "Trigger various invalid upload scenarios and ensure users receive the correct notifications."
+          },
+          {
+            "id": 5,
+            "title": "Frontend Real-Time Validation Integration",
+            "description": "Integrate real-time validation logic into the frontend to provide immediate feedback to users.",
+            "dependencies": [
+              4
+            ],
+            "details": "Update the frontend application to include checks for time slot and duplicate uploads before submission.",
+            "status": "pending",
+            "testStrategy": "Test the frontend with different upload attempts to ensure real-time feedback is accurate and user-friendly."
+          }
+        ]
       },
       {
         "id": 7,
@@ -317,7 +372,7 @@
         "description": "Create the UI for login and registration screens using Next.js and Tailwind CSS.",
         "details": "Develop responsive login and registration forms with input validation. Include social login options and a couple connection feature.",
         "testStrategy": "Conduct usability testing to ensure the screens are intuitive and functional.",
-        "priority": "medium",
+        "priority": "high",
         "dependencies": [
           3
         ],
@@ -330,7 +385,7 @@
         "description": "Develop the main feed screen to display daily meal posts and calorie summaries.",
         "details": "Create a feed that displays uploaded meals in chronological order with calorie information. Implement infinite scroll for past meal viewing.",
         "testStrategy": "Test the feed functionality by uploading multiple meals and verifying they appear correctly in the feed.",
-        "priority": "medium",
+        "priority": "high",
         "dependencies": [
           4
         ],
@@ -395,7 +450,7 @@
         "description": "Ensure the application adheres to security requirements including data protection and secure uploads.",
         "details": "Implement JWT for authentication, secure image uploads, and parameterized queries to prevent SQL injection.",
         "testStrategy": "Conduct security testing to ensure vulnerabilities are addressed and data protection measures are effective.",
-        "priority": "high",
+        "priority": "low",
         "dependencies": [
           3
         ],
@@ -421,17 +476,86 @@
         "description": "Set up CI/CD pipeline for automated testing and deployment to production.",
         "details": "Configure GitHub Actions for CI/CD to automate testing and deployment to Vercel or AWS.",
         "testStrategy": "Test the CI/CD pipeline by pushing changes and verifying that tests run and deployment occurs successfully.",
-        "priority": "high",
+        "priority": "medium",
         "dependencies": [
           12
         ],
         "status": "pending",
         "subtasks": []
+      },
+      {
+        "id": 16,
+        "title": "Implement Image Analysis for Calorie Extraction using Google Gemini API",
+        "description": "Develop functionality to analyze food images and extract calorie information using the Google Gemini API, optimized for Korean language prompts.",
+        "details": "This task involves integrating the Google Gemini API to analyze food images uploaded by users. The implementation will include the following steps: 1. Set up the Google Gemini API client and configure it to accept image uploads. 2. Create a user interface for image upload and display results. 3. Optimize prompts for the Korean language to ensure accurate analysis results. 4. Implement image processing techniques to prepare images for analysis. 5. Store the analysis results in the database, linking them to the user and the uploaded image. 6. Ensure that the application adheres to security measures established in Task 13, particularly regarding secure image uploads. 7. Conduct performance optimization as outlined in Task 12 to ensure the image analysis process is efficient.",
+        "testStrategy": "To verify the correct implementation of this task, follow these steps: 1. Upload various food images and check if the Google Gemini API returns accurate calorie information. 2. Validate that the UI displays the results correctly and is user-friendly. 3. Ensure that the results are stored correctly in the database and can be retrieved without errors. 4. Test the integration with existing security measures to confirm that image uploads are secure. 5. Measure the performance of the image upload and analysis process to ensure it meets the optimization targets established in Task 12.",
+        "status": "pending",
+        "dependencies": [
+          3,
+          12
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set Up Google Gemini API Client",
+            "description": "Configure and initialize the Google Gemini API client to handle image uploads and responses.",
+            "dependencies": [],
+            "details": "Follow the Google Gemini API documentation to create a client instance. Ensure that the client is set up to accept image uploads and is configured for Korean language processing. Test the connection to ensure it is working correctly.",
+            "status": "done",
+            "testStrategy": "Verify the API client connection by sending a test request and checking for a valid response."
+          },
+          {
+            "id": 2,
+            "title": "Create User Interface for Image Upload",
+            "description": "Develop a user interface that allows users to upload food images and view the analysis results.",
+            "dependencies": [
+              1
+            ],
+            "details": "Design a simple web interface using HTML/CSS and JavaScript. Include an upload button and a section to display the analysis results. Ensure the interface is user-friendly and responsive.",
+            "status": "done",
+            "testStrategy": "Conduct usability testing with users to ensure the upload process is intuitive and results are displayed correctly."
+          },
+          {
+            "id": 3,
+            "title": "Optimize Korean Language Prompts",
+            "description": "Refine the prompts used for image analysis to ensure they are optimized for the Korean language.",
+            "dependencies": [
+              1
+            ],
+            "details": "Research and develop a set of prompts specifically tailored for Korean language users. Test these prompts with sample images to ensure they yield accurate calorie information.",
+            "status": "done",
+            "testStrategy": "Run a series of tests comparing the accuracy of results using optimized prompts versus standard prompts."
+          },
+          {
+            "id": 4,
+            "title": "Implement Image Processing Techniques",
+            "description": "Develop image processing methods to prepare food images for analysis by the Google Gemini API.",
+            "dependencies": [
+              2
+            ],
+            "details": "Utilize libraries such as OpenCV or PIL to preprocess images (e.g., resizing, normalization). Ensure that images are in a format accepted by the API and enhance image quality for better analysis results.",
+            "status": "done",
+            "testStrategy": "Test the image processing pipeline with various food images to ensure they are correctly formatted and processed before sending to the API."
+          },
+          {
+            "id": 5,
+            "title": "Store Analysis Results in Database",
+            "description": "Create a mechanism to store the calorie analysis results in the database, linking them to the user and the uploaded image.",
+            "dependencies": [
+              2,
+              4
+            ],
+            "details": "Design a database schema that includes tables for users, images, and analysis results. Implement the backend logic to save results after receiving them from the API, ensuring proper associations are made.",
+            "status": "done",
+            "testStrategy": "Perform integration testing to ensure that results are correctly stored in the database and can be retrieved accurately."
+          }
+        ]
       }
     ],
     "metadata": {
       "created": "2025-07-06T11:48:37.796Z",
-      "updated": "2025-07-08T14:48:56.312Z",
+      "updated": "2025-07-09T14:09:58.257Z",
       "description": "Tasks for master context"
     }
   }

@@ -1,49 +1,27 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useCallback, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { AuthGuard } from '@/components/auth'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useUser } from '@/hooks/useUser'
-import { LoadingSpinner } from '@/components/ui/loading'
-import { FormButton } from '@/components/ui/button'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { FoodAnalysisResult } from '@/types/food-analysis'
-import Image from 'next/image'
+import { ImageUploader } from '@/components/ImageUploader'
 
 function NewMealContent() {
   const router = useRouter()
   const { user } = useUser()
+  const supabase = createClientComponentClient()
+
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [analysisResult, setAnalysisResult] = useState<FoodAnalysisResult | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [analysisResult, setAnalysisResult] = useState<FoodAnalysisResult | null>(null)
 
-  const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    // 파일 크기 체크 (10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      setError('파일 크기는 10MB를 초과할 수 없습니다.')
-      return
-    }
-
-    // 이미지 파일 체크
-    if (!file.type.startsWith('image/')) {
-      setError('이미지 파일만 업로드할 수 있습니다.')
-      return
-    }
-
+  const handleFileSelect = useCallback((file: File) => {
     setSelectedFile(file)
     setError(null)
-
-    // 이미지 미리보기 생성
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string)
-    }
-    reader.readAsDataURL(file)
+    setAnalysisResult(null)
   }, [])
 
   const handleAnalyze = async () => {
@@ -52,14 +30,24 @@ function NewMealContent() {
     setIsAnalyzing(true)
     setError(null)
 
-    const formData = new FormData()
-    formData.append('image', selectedFile)
-    formData.append('userId', user.id)
-    formData.append('saveToHistory', 'true')
-
     try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      
+      if (sessionError || !session?.access_token) {
+        setError('인증 세션을 가져올 수 없습니다. 다시 로그인해주세요.')
+        return
+      }
+
+      const formData = new FormData()
+      formData.append('image', selectedFile)
+      formData.append('save_to_history', 'true')
+      formData.append('save_images', 'true')
+
       const response = await fetch('/api/meals/analyze', {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: formData
       })
 
@@ -89,112 +77,93 @@ function NewMealContent() {
     event.preventDefault()
     event.stopPropagation()
 
-    const file = event.dataTransfer.files?.[0]
-    if (!file) return
-
-    // 파일 크기 체크 (10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      setError('파일 크기는 10MB를 초과할 수 없습니다.')
-      return
+    const file = event.dataTransfer.files[0]
+    if (file && file.type.startsWith('image/')) {
+      handleFileSelect(file)
     }
-
-    // 이미지 파일 체크
-    if (!file.type.startsWith('image/')) {
-      setError('이미지 파일만 업로드할 수 있습니다.')
-      return
-    }
-
-    setSelectedFile(file)
-    setError(null)
-
-    // 이미지 미리보기 생성
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string)
-    }
-    reader.readAsDataURL(file)
-  }, [])
+  }, [handleFileSelect])
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">
-            새로운 식사 기록
-          </h1>
-        </div>
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-2xl font-bold mb-8">새로운 식사 기록</h1>
 
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <div
-            className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center"
-            onDragOver={handleDragOver}
-            onDrop={handleDrop}
-          >
-            {imagePreview ? (
-              <div className="space-y-4">
-                <div className="relative h-64 w-full">
-                  <Image
-                    src={imagePreview}
-                    alt="선택된 이미지"
-                    fill
-                    className="object-contain"
-                  />
-                </div>
-                <FormButton
-                  onClick={() => {
-                    setSelectedFile(null)
-                    setImagePreview(null)
-                    setAnalysisResult(null)
-                    setError(null)
-                  }}
-                  className="bg-red-600 hover:bg-red-700"
-                >
-                  이미지 삭제
-                </FormButton>
-              </div>
-            ) : (
-              <div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                  ref={fileInputRef}
-                />
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="text-blue-600 hover:text-blue-700"
-                >
-                  이미지를 선택하거나 드래그하여 업로드하세요
-                </button>
-                <p className="mt-2 text-sm text-gray-500">
-                  JPG, PNG 파일 (최대 10MB)
-                </p>
-              </div>
-            )}
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+          {/* 이미지 업로드 섹션 */}
+          <div className="p-6 border-b">
+            <h2 className="text-lg font-semibold mb-4">📸 음식 사진 업로드</h2>
+            <ImageUploader
+              onFileSelect={handleFileSelect}
+              selectedFile={selectedFile}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+              disabled={isAnalyzing}
+            />
           </div>
 
-          {error && (
-            <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
-              {error}
-            </div>
-          )}
-
-          <div className="mt-6 flex justify-end space-x-4">
-            <FormButton
-              onClick={() => router.push('/meals')}
-              className="bg-gray-500 hover:bg-gray-600"
-            >
-              취소
-            </FormButton>
-            <FormButton
+          {/* 분석 버튼 및 상태 */}
+          <div className="p-6 bg-gray-50">
+            <button
               onClick={handleAnalyze}
               disabled={!selectedFile || isAnalyzing}
-              loading={isAnalyzing}
-              className="bg-blue-600 hover:bg-blue-700"
+              className={`w-full py-3 px-4 rounded-lg font-medium text-white transition-colors
+                ${!selectedFile || isAnalyzing
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700'
+                }`}
             >
-              분석 시작
-            </FormButton>
+              {isAnalyzing ? (
+                <div className="flex items-center justify-center">
+                  <LoadingSpinner className="w-5 h-5" />
+                  <span className="ml-2">분석 중...</span>
+                </div>
+              ) : (
+                '음식 분석하기'
+              )}
+            </button>
+
+            {/* 에러 메시지 */}
+            {error && (
+              <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-700 text-sm">{error}</p>
+              </div>
+            )}
+
+            {/* 분석 결과 */}
+            {analysisResult && (
+              <div className="mt-6 space-y-4">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <h3 className="font-semibold text-green-800 mb-2">
+                    🍽️ 분석 완료!
+                  </h3>
+                  <div className="text-sm text-green-700">
+                    <p><strong>총 칼로리:</strong> {analysisResult.total_calories} kcal</p>
+                    <p><strong>식사 타입:</strong> {analysisResult.meal_type || '미분류'}</p>
+                    <p><strong>분석 신뢰도:</strong> {Math.round(analysisResult.analysis_confidence * 100)}%</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h3 className="font-semibold">인식된 음식</h3>
+                  {analysisResult.foods.map((food, index) => (
+                    <div key={index} className="bg-white border rounded-lg p-4">
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium">{food.name}</span>
+                        <span className="text-sm text-gray-500">
+                          신뢰도: {Math.round(food.confidence * 100)}%
+                        </span>
+                      </div>
+                      <div className="text-sm text-gray-600 mt-1">
+                        <span>{food.amount}</span>
+                        <span className="ml-4 font-medium">
+                          {Math.round(food.calories)} kcal
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -203,9 +172,5 @@ function NewMealContent() {
 }
 
 export default function NewMealPage() {
-  return (
-    <AuthGuard>
-      <NewMealContent />
-    </AuthGuard>
-  )
+  return <NewMealContent />
 } 
