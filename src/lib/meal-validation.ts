@@ -1,4 +1,5 @@
 import { MealType } from '@/types/database';
+import { supabase } from '@/lib/supabase';
 
 /**
  * 시간대별 식사 제한 설정
@@ -210,4 +211,228 @@ export function getNextAllowedTime(
   // 내일로 설정
   tomorrow.setHours(targetHour, 0, 0, 0);
   return tomorrow;
+}
+
+// ===== 데이터베이스 중복 검증 관련 =====
+
+/**
+ * 데이터베이스 중복 검증 결과
+ */
+export interface DuplicateValidationResult {
+  isDuplicate: boolean;
+  existingMeal?: {
+    id: string;
+    meal_name: string;
+    created_at: string;
+  };
+  message: string;
+}
+
+/**
+ * 통합 식사 검증 결과 (시간대 + 중복)
+ */
+export interface ComprehensiveMealValidationResult {
+  isValid: boolean;
+  timeValidation: MealValidationResult;
+  duplicateValidation: DuplicateValidationResult;
+  message: string;
+  canProceed: boolean;
+}
+
+/**
+ * 특정 날짜에 사용자가 해당 식사 타입을 이미 업로드했는지 확인
+ * @param userId 사용자 ID
+ * @param mealType 식사 타입
+ * @param mealDate 식사 날짜 (YYYY-MM-DD 형식)
+ * @returns 중복 검증 결과
+ */
+export async function checkDuplicateMeal(
+  userId: string,
+  mealType: MealType,
+  mealDate: string
+): Promise<DuplicateValidationResult> {
+  try {
+    // 스낵은 중복 허용
+    if (mealType === 'snack') {
+      return {
+        isDuplicate: false,
+        message: '스낵은 하루에 여러 번 업로드할 수 있습니다.'
+      };
+    }
+
+    // 데이터베이스에서 중복 확인
+    const { data: existingMeals, error } = await supabase
+      .from('meals')
+      .select('id, meal_name, created_at')
+      .eq('user_id', userId)
+      .eq('meal_type', mealType)
+      .eq('meal_date', mealDate)
+      .limit(1);
+
+    if (error) {
+      console.error('데이터베이스 중복 확인 오류:', error);
+      throw new Error('데이터베이스 확인 중 오류가 발생했습니다.');
+    }
+
+    if (existingMeals && existingMeals.length > 0) {
+      const existingMeal = existingMeals[0];
+      const mealTypeKorean = {
+        breakfast: '아침식사',
+        lunch: '점심식사', 
+        dinner: '저녁식사',
+        snack: '스낵'
+      }[mealType];
+
+      return {
+        isDuplicate: true,
+        existingMeal: {
+          id: existingMeal.id,
+          meal_name: existingMeal.meal_name,
+          created_at: existingMeal.created_at
+        },
+        message: `오늘 이미 ${mealTypeKorean}를 업로드하셨습니다. (${existingMeal.meal_name})`
+      };
+    }
+
+    return {
+      isDuplicate: false,
+      message: '중복되지 않습니다. 업로드 가능합니다.'
+    };
+
+  } catch (error) {
+    console.error('중복 확인 중 오류:', error);
+    return {
+      isDuplicate: true, // 안전한 기본값으로 중복으로 처리
+      message: '중복 확인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+    };
+  }
+}
+
+/**
+ * 포괄적인 식사 업로드 검증 (시간대 + 중복)
+ * @param userId 사용자 ID
+ * @param mealType 식사 타입
+ * @param date 검증할 날짜 (기본값: 현재 시간)
+ * @param timeSlots 시간대 설정 (기본값: DEFAULT_TIME_SLOTS)
+ * @returns 포괄적인 검증 결과
+ */
+export async function validateMealUpload(
+  userId: string,
+  mealType: MealType,
+  date: Date = new Date(),
+  timeSlots: TimeSlotConfig = DEFAULT_TIME_SLOTS
+): Promise<ComprehensiveMealValidationResult> {
+  // 1. 시간대 검증
+  const timeValidation = validateMealTime(mealType, date, timeSlots);
+  
+  // 2. 중복 검증 (시간대가 유효한 경우에만)
+  let duplicateValidation: DuplicateValidationResult;
+  
+  if (timeValidation.isValid) {
+    const mealDate = date.toISOString().split('T')[0]; // YYYY-MM-DD 형식
+    duplicateValidation = await checkDuplicateMeal(userId, mealType, mealDate);
+  } else {
+    // 시간대가 무효하면 중복 검사 스킵
+    duplicateValidation = {
+      isDuplicate: false,
+      message: '시간대 검증을 먼저 통과해야 합니다.'
+    };
+  }
+
+  // 3. 종합 결과 결정
+  const canProceed = timeValidation.isValid && !duplicateValidation.isDuplicate;
+  
+  let message: string;
+  if (!timeValidation.isValid) {
+    message = timeValidation.message;
+  } else if (duplicateValidation.isDuplicate) {
+    message = duplicateValidation.message;
+  } else {
+    message = '업로드 가능합니다!';
+  }
+
+  return {
+    isValid: canProceed,
+    timeValidation,
+    duplicateValidation,
+    message,
+    canProceed
+  };
+}
+
+/**
+ * 특정 날짜의 사용자 식사 기록 요약
+ * @param userId 사용자 ID
+ * @param mealDate 조회할 날짜 (YYYY-MM-DD 형식)
+ * @returns 해당 날짜의 식사 기록 요약
+ */
+export async function getDailyMealSummary(
+  userId: string,
+  mealDate: string
+): Promise<{
+  breakfast: boolean;
+  lunch: boolean;
+  dinner: boolean;
+  snackCount: number;
+  totalMeals: number;
+  meals: Array<{
+    id: string;
+    meal_type: MealType;
+    meal_name: string;
+    created_at: string;
+  }>;
+}> {
+  try {
+    const { data: meals, error } = await supabase
+      .from('meals')
+      .select('id, meal_type, meal_name, created_at')
+      .eq('user_id', userId)
+      .eq('meal_date', mealDate)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('일일 식사 요약 조회 오류:', error);
+      throw new Error('식사 기록 조회 중 오류가 발생했습니다.');
+    }
+
+    const summary = {
+      breakfast: false,
+      lunch: false,
+      dinner: false,
+      snackCount: 0,
+      totalMeals: meals?.length || 0,
+      meals: meals || []
+    };
+
+    meals?.forEach(meal => {
+      switch (meal.meal_type) {
+        case 'breakfast':
+          summary.breakfast = true;
+          break;
+        case 'lunch':
+          summary.lunch = true;
+          break;
+        case 'dinner':
+          summary.dinner = true;
+          break;
+        case 'snack':
+          summary.snackCount++;
+          break;
+      }
+    });
+
+    return summary;
+
+  } catch (error) {
+    console.error('일일 식사 요약 오류:', error);
+    // 오류 시 기본값 반환
+    return {
+      breakfast: false,
+      lunch: false,
+      dinner: false,
+      snackCount: 0,
+      totalMeals: 0,
+      meals: []
+    };
+  }
 } 
