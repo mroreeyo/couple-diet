@@ -66,7 +66,7 @@ const demoMeals: (MealAnalysisRecord & { authorName?: string; authorEmail?: stri
       ]
     },
     created_at: new Date(Date.now() - 1000 * 60 * 60 * 20).toISOString(), // 20시간 전
-    authorName: '지영',
+    authorName: '시은',
     authorEmail: 'jiyoung@example.com'
   }
 ]
