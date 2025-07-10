@@ -136,14 +136,15 @@ export function LoginForm({
   }
 
   return (
-    <div className={cn("w-full max-w-md mx-auto", className)}>
-      <div className="bg-white rounded-lg shadow-md p-6 space-y-6">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            로그인
+    <div className={cn("w-full", className)}>
+      <div className="space-y-6">
+        {/* Welcome text */}
+        <div className="text-center space-y-2">
+          <h2 className="text-2xl font-bold text-gray-900">
+            안녕하세요! 👋
           </h2>
           <p className="text-gray-600">
-            계정에 로그인하여 시작하세요
+            로그인하여 건강한 식습관을 시작하세요
           </p>
         </div>
 
@@ -155,34 +156,38 @@ export function LoginForm({
           />
         )}
         
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <FormInput
-            id="email"
-            type="email"
-            label="이메일"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            onBlur={() => validateEmail(email)}
-            error={emailError}
-            placeholder="your@email.com"
-            disabled={loading}
-            autoComplete="email"
-            required
-          />
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="space-y-4">
+            <FormInput
+              id="email"
+              type="email"
+              label="이메일"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onBlur={() => validateEmail(email)}
+              error={emailError}
+              placeholder="couple@example.com"
+              disabled={loading}
+              autoComplete="email"
+              required
+              className="transition-all duration-200 focus:scale-[1.02]"
+            />
 
-          <FormInput
-            id="password"
-            label="비밀번호"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            disabled={loading}
-            isPassword
-            showPassword={showPassword}
-            onTogglePassword={() => setShowPassword(!showPassword)}
-            autoComplete="current-password"
-            required
-          />
+            <FormInput
+              id="password"
+              label="비밀번호"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              disabled={loading}
+              isPassword
+              showPassword={showPassword}
+              onTogglePassword={() => setShowPassword(!showPassword)}
+              autoComplete="current-password"
+              required
+              className="transition-all duration-200 focus:scale-[1.02]"
+            />
+          </div>
 
           {error && (
             <Alert 
@@ -192,28 +197,32 @@ export function LoginForm({
             />
           )}
 
-          <FormButton
-            type="submit" 
-            loading={loading}
-            loadingText="로그인 중..."
-            disabled={isLockedOut}
-            fullWidth
-          >
-            로그인
-          </FormButton>
-        </form>
-
-        <div className="text-center">
-          <p className="text-sm text-gray-600">
-            계정이 없으신가요?{' '}
-            <button
-              onClick={() => router.push('/signup')}
-              className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
+          <div className="pt-2">
+            <FormButton
+              type="submit" 
+              loading={loading}
+              loadingText="로그인 중..."
+              disabled={isLockedOut}
+              fullWidth
+              variant="gradient"
             >
-              회원가입
+              로그인
+            </FormButton>
+          </div>
+
+          <div className="text-center">
+            <button
+              type="button"
+              className="text-sm text-gray-500 hover:text-gray-700 transition-colors duration-200"
+              onClick={() => {
+                // TODO: 비밀번호 재설정 기능 구현
+                alert('비밀번호 재설정 기능은 곧 추가될 예정입니다.')
+              }}
+            >
+              비밀번호를 잊으셨나요?
             </button>
-          </p>
-        </div>
+          </div>
+        </form>
       </div>
     </div>
   )

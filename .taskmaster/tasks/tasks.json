@@ -377,7 +377,61 @@
           3
         ],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Improve UI/UX for Login and Registration Screens",
+            "description": "Revise the existing UI/UX for the login and registration screens to enhance user experience.",
+            "dependencies": [],
+            "details": "Focus on layout adjustments, color schemes, and accessibility improvements.\n<info added on 2025-07-10T13:24:36.284Z>\nTask 7.1 \"UI/UX Improvements\" has been completed with the following enhancements:\n\n1. Modernized page layout with a soft gradient background and decorative elements.\n2. Strengthened branding and identity through consistent color schemes and messaging.\n3. Updated form components with improved visual feedback and touch-friendly designs.\n4. Enhanced button components with new gradient variants and animation effects.\n5. Improved user experience with clear visual hierarchy and accessibility features.\n6. Technical enhancements including TypeScript type safety and optimized CSS classes.\n\nThe login and registration pages have been upgraded to a modern and attractive UI while maintaining all existing functionalities.\n</info added on 2025-07-10T13:24:36.284Z>",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Integrate Social Login Options",
+            "description": "Implement social login features such as Google and Facebook authentication.",
+            "dependencies": [
+              1
+            ],
+            "details": "Use OAuth for authentication and ensure proper user data handling.",
+            "status": "deferred",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Implement Couple Connection Feature",
+            "description": "Develop the functionality that allows users to connect with their partners.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create a user interface for couple connections and backend logic for managing connections.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Test Social Login Functionality",
+            "description": "Conduct thorough testing of the social login integration to ensure it works as intended.",
+            "dependencies": [
+              2
+            ],
+            "details": "Test various scenarios including successful logins, error handling, and data retrieval.",
+            "status": "deferred",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Test Couple Connection Feature",
+            "description": "Perform testing on the couple connection feature to ensure reliability and user satisfaction.",
+            "dependencies": [
+              3
+            ],
+            "details": "Check for bugs, user experience issues, and ensure data integrity.",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
       },
       {
         "id": 8,
@@ -555,7 +609,7 @@
     ],
     "metadata": {
       "created": "2025-07-06T11:48:37.796Z",
-      "updated": "2025-07-10T13:12:33.772Z",
+      "updated": "2025-07-10T13:25:06.656Z",
       "description": "Tasks for master context"
     }
   }

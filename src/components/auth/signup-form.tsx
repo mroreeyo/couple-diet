@@ -126,26 +126,29 @@ export function SignupForm({
   // 성공 상태 UI
   if (successMessage) {
     return (
-      <div className={cn("w-full max-w-md mx-auto", className)}>
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="text-center space-y-4">
-            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100">
-              <span className="text-3xl">✅</span>
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                회원가입 완료!
-              </h2>
-              <p className="text-gray-600">
+      <div className={cn("w-full", className)}>
+        <div className="text-center space-y-6">
+          <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-gradient-to-br from-green-400 to-green-600 shadow-lg">
+            <span className="text-4xl">✅</span>
+          </div>
+          <div className="space-y-3">
+            <h2 className="text-2xl font-bold text-gray-900">
+              환영합니다! 🎉
+            </h2>
+            <div className="space-y-2">
+              <p className="text-gray-600 font-medium">
                 {successMessage}
               </p>
-            </div>
-            <div className="pt-4">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="text-sm text-gray-500 mt-2">
-                로그인 페이지로 이동 중...
+              <p className="text-sm text-gray-500">
+                이메일 인증을 완료하면 모든 기능을 사용할 수 있습니다.
               </p>
             </div>
+          </div>
+          <div className="pt-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-pink-200 border-t-pink-600 mx-auto"></div>
+            <p className="text-sm text-gray-500 mt-3">
+              로그인 페이지로 이동 중...
+            </p>
           </div>
         </div>
       </div>
@@ -153,94 +156,103 @@ export function SignupForm({
   }
 
   return (
-    <div className={cn("w-full max-w-md mx-auto", className)}>
-      <div className="bg-white rounded-lg shadow-md p-6 space-y-6">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            회원가입
+    <div className={cn("w-full", className)}>
+      <div className="space-y-6">
+        {/* Welcome text */}
+        <div className="text-center space-y-2">
+          <h2 className="text-2xl font-bold text-gray-900">
+            함께 시작해요! 💕
           </h2>
           <p className="text-gray-600">
-            새 계정을 만들어 시작하세요
+            새 계정을 만들어 파트너와 건강한 식습관을 만들어보세요
           </p>
         </div>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <FormInput
-            id="email"
-            type="email"
-            label="이메일"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            onBlur={() => validateEmail(email)}
-            error={emailError}
-            placeholder="your@email.com"
-            disabled={loading}
-            autoComplete="email"
-            required
-          />
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="space-y-4">
+            <FormInput
+              id="email"
+              type="email"
+              label="이메일"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onBlur={() => validateEmail(email)}
+              error={emailError}
+              placeholder="couple@example.com"
+              disabled={loading}
+              autoComplete="email"
+              required
+              className="transition-all duration-200 focus:scale-[1.02]"
+            />
 
-          <FormInput
-            id="password"
-            label="비밀번호"
-            value={password}
-            onChange={(e) => {
-              setPassword(e.target.value)
-              if (e.target.value) {
-                validatePasswordStrength(e.target.value)
-              }
-            }}
-            placeholder="••••••••"
-            disabled={loading}
-            isPassword
-            showPassword={showPassword}
-            onTogglePassword={() => setShowPassword(!showPassword)}
-            error={passwordErrors.length > 0 ? passwordErrors[0] : ''}
-            autoComplete="new-password"
-            required
-          />
+            <div className="space-y-3">
+              <FormInput
+                id="password"
+                label="비밀번호"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value)
+                  if (e.target.value) {
+                    validatePasswordStrength(e.target.value)
+                  }
+                }}
+                placeholder="••••••••"
+                disabled={loading}
+                isPassword
+                showPassword={showPassword}
+                onTogglePassword={() => setShowPassword(!showPassword)}
+                error={passwordErrors.length > 0 ? passwordErrors[0] : ''}
+                autoComplete="new-password"
+                required
+                className="transition-all duration-200 focus:scale-[1.02]"
+              />
 
-          {/* 비밀번호 강도 표시 */}
-          {password.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">비밀번호 강도:</span>
-                <span className={`text-sm font-medium ${getPasswordStrengthColor()}`}>
-                  {getPasswordStrengthText()}
-                </span>
-              </div>
-          
-              {passwordErrors.length > 0 && (
-                <div className="space-y-1">
-                  {passwordErrors.map((error, index) => (
-                    <p key={index} className="text-xs text-red-600 flex items-center gap-1">
-                      <span>•</span>
-                      {error}
-                    </p>
-                  ))}
+              {/* Password strength indicator */}
+              {password && (
+                <div className="px-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">비밀번호 강도:</span>
+                    <span className={cn("text-sm font-semibold", getPasswordStrengthColor())}>
+                      {getPasswordStrengthText()}
+                    </span>
+                  </div>
+                  <div className="mt-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                      className={cn(
+                        "h-full transition-all duration-300 rounded-full",
+                        passwordErrors.length === 0 && password.length > 0 
+                          ? "bg-gradient-to-r from-green-400 to-green-600 w-full"
+                          : passwordErrors.length <= 2 
+                          ? "bg-gradient-to-r from-yellow-400 to-yellow-600 w-2/3"
+                          : "bg-gradient-to-r from-red-400 to-red-600 w-1/3"
+                      )}
+                    ></div>
+                  </div>
                 </div>
               )}
             </div>
-          )}
 
-          <FormInput
-            id="confirmPassword"
-            label="비밀번호 확인"
-            value={confirmPassword}
-            onChange={(e) => {
-              setConfirmPassword(e.target.value)
-              if (e.target.value) {
-                validatePasswordConfirmation(password, e.target.value)
-              }
-            }}
-            placeholder="••••••••"
-            disabled={loading}
-            isPassword
-            showPassword={showConfirmPassword}
-            onTogglePassword={() => setShowConfirmPassword(!showConfirmPassword)}
-            error={confirmPasswordError}
-            autoComplete="new-password"
-            required
-          />
+            <FormInput
+              id="confirmPassword"
+              label="비밀번호 확인"
+              value={confirmPassword}
+              onChange={(e) => {
+                setConfirmPassword(e.target.value)
+                if (e.target.value) {
+                  validatePasswordConfirmation(password, e.target.value)
+                }
+              }}
+              placeholder="••••••••"
+              disabled={loading}
+              isPassword
+              showPassword={showConfirmPassword}
+              onTogglePassword={() => setShowConfirmPassword(!showConfirmPassword)}
+              error={confirmPasswordError}
+              autoComplete="new-password"
+              required
+              className="transition-all duration-200 focus:scale-[1.02]"
+            />
+          </div>
 
           {error && (
             <Alert 
@@ -250,27 +262,41 @@ export function SignupForm({
             />
           )}
 
-          <FormButton
-            type="submit" 
-            loading={loading}
-            loadingText="회원가입 중..."
-            fullWidth
-          >
-            계정 만들기
-          </FormButton>
-        </form>
-
-        <div className="text-center">
-          <p className="text-sm text-gray-600">
-            이미 계정이 있으신가요?{' '}
-            <button
-              onClick={() => router.push('/login')}
-              className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
+          <div className="pt-2">
+            <FormButton
+              type="submit" 
+              loading={loading}
+              loadingText="계정 생성 중..."
+              disabled={loading || passwordErrors.length > 0 || !password || !confirmPassword}
+              fullWidth
+              variant="gradient"
             >
-              로그인
-            </button>
-          </p>
-        </div>
+              계정 만들기
+            </FormButton>
+          </div>
+
+          <div className="text-center">
+            <p className="text-xs text-gray-500 leading-relaxed">
+              계정을 생성하면{' '}
+              <button 
+                type="button"
+                className="text-pink-600 hover:text-pink-700 transition-colors duration-200"
+                onClick={() => alert('서비스 약관을 확인하세요.')}
+              >
+                서비스 약관
+              </button>
+              {' '}및{' '}
+              <button 
+                type="button"
+                className="text-pink-600 hover:text-pink-700 transition-colors duration-200"
+                onClick={() => alert('개인정보 처리방침을 확인하세요.')}
+              >
+                개인정보 처리방침
+              </button>
+              에 동의하는 것으로 간주됩니다.
+            </p>
+          </div>
+        </form>
       </div>
     </div>
   )
