@@ -98,6 +98,21 @@ function DashboardContent() {
             {/* 빠른 액션 카드들 */}
             <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-lg border border-gray-200/50 p-6 hover:shadow-xl transition-all duration-300">
               <h3 className="text-xl font-semibold text-gray-800 mb-4">
+                메인 피드 💕
+              </h3>
+              <p className="text-gray-600 mb-4">
+                나와 파트너의 식단을 함께 확인해보세요.
+              </p>
+              <a 
+                href="/feed"
+                className="block w-full text-center bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 text-white py-2 px-4 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
+              >
+                피드 보기
+              </a>
+            </div>
+
+            <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-lg border border-gray-200/50 p-6 hover:shadow-xl transition-all duration-300">
+              <h3 className="text-xl font-semibold text-gray-800 mb-4">
                 식사 기록 📝
               </h3>
               <p className="text-gray-600 mb-4">
@@ -105,7 +120,7 @@ function DashboardContent() {
               </p>
               <a 
                 href="/meals/new"
-                className="block w-full text-center bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 text-white py-2 px-4 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
+                className="block w-full text-center bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white py-2 px-4 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
               >
                 식사 추가하기
               </a>
