@@ -141,7 +141,7 @@ export default function TestMealNotificationsPage() {
             existingMeal: {
               id: 'meal_456',
               meal_name: '김치찌개',
-              created_at: '2024-01-15T12:30:00Z'
+              created_at: '2025-01-15T12:30:00Z'
             }
           }
         },

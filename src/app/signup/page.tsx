@@ -44,7 +44,7 @@ export default function SignupPage() {
           {/* Footer */}
           <div className="text-center mt-8">
             <p className="text-sm text-gray-500">
-              © 2024 Couple Diet. 사랑으로 만드는 건강한 습관
+              © 2025 Couple Diet. 사랑으로 만드는 건강한 습관
             </p>
           </div>
         </div>

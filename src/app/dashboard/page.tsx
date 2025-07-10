@@ -2,6 +2,7 @@
 
 import { AuthGuard } from '@/components/auth'
 import { useAuth } from '@/contexts/auth-context'
+import { CoupleConnectionWidget } from '@/components/couples/CoupleConnectionWidget'
 import { LogOut, User } from 'lucide-react'
 import { useState } from 'react'
 
@@ -102,21 +103,17 @@ function DashboardContent() {
               <p className="text-gray-600 mb-4">
                 오늘의 식사를 기록해보세요.
               </p>
-              <button className="w-full bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 text-white py-2 px-4 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95">
+              <a 
+                href="/meals/new"
+                className="block w-full text-center bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 text-white py-2 px-4 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
+              >
                 식사 추가하기
-              </button>
+              </a>
             </div>
 
-            <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-lg border border-gray-200/50 p-6 hover:shadow-xl transition-all duration-300">
-              <h3 className="text-xl font-semibold text-gray-800 mb-4">
-                파트너 연결 💑
-              </h3>
-              <p className="text-gray-600 mb-4">
-                파트너와 함께 건강한 식습관을 만들어보세요.
-              </p>
-              <button className="w-full bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 text-white py-2 px-4 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95">
-                파트너 연결하기
-              </button>
+            {/* 커플 연결 위젯 - 전체 너비로 확장 */}
+            <div className="md:col-span-2">
+              <CoupleConnectionWidget />
             </div>
 
             <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-lg border border-gray-200/50 p-6 hover:shadow-xl transition-all duration-300">
@@ -138,6 +135,12 @@ function DashboardContent() {
                   className="block w-full text-center bg-green-100 hover:bg-green-200 text-green-700 py-2 px-4 rounded-lg transition-all duration-200 text-sm"
                 >
                   실시간 검증
+                </a>
+                <a 
+                  href="/test-couple-connection" 
+                  className="block w-full text-center bg-purple-100 hover:bg-purple-200 text-purple-700 py-2 px-4 rounded-lg transition-all duration-200 text-sm"
+                >
+                  커플 기능 테스트
                 </a>
               </div>
             </div>
