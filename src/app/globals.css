@@ -149,3 +149,13 @@ a:hover {
     @apply bg-background text-foreground;
   }
 }
+
+/* Toast animations */
+@keyframes toast-progress {
+  from { 
+    width: 100%; 
+  }
+  to { 
+    width: 0%; 
+  }
+}

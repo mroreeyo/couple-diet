@@ -7,11 +7,18 @@ import { useUser } from '@/hooks/useUser'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { FoodAnalysisResult } from '@/types/food-analysis'
 import { ImageUploader } from '@/components/ImageUploader'
+import { useMealValidationNotifier } from '@/components/meals/MealValidationNotifier'
 
 function NewMealContent() {
   const router = useRouter()
   const { user } = useUser()
   const supabase = createClientComponentClient()
+  
+  const { notifyFromAPIResponse } = useMealValidationNotifier({
+    onViewExistingMeal: (mealId) => {
+      router.push(`/meals/${mealId}`)
+    }
+  })
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -53,12 +60,21 @@ function NewMealContent() {
 
       const result = await response.json()
 
+      // 알림 시스템을 통해 API 응답 처리
+      notifyFromAPIResponse(result)
+
       if (result.success && result.data) {
         setAnalysisResult(result.data)
-        // 분석이 완료되면 목록 페이지로 이동
-        router.push('/meals')
-      } else {
+        // 성공적으로 저장된 경우에만 목록 페이지로 이동
+        setTimeout(() => {
+          router.push('/meals')
+        }, 2000) // 성공 알림을 보여준 후 이동
+      } else if (result.success === false && !result.validation) {
+        // 검증 관련이 아닌 일반 에러만 여기서 처리
         setError(result.error || '음식 분석에 실패했습니다.')
+      } else if (result.analysis) {
+        // 분석은 성공했지만 저장은 실패한 경우 분석 결과는 표시
+        setAnalysisResult(result.analysis)
       }
     } catch (error) {
       console.error('Analysis error:', error)
