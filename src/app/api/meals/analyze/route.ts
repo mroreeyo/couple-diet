@@ -27,6 +27,11 @@ import {
 import { 
   saveMealAnalysis
 } from '@/lib/meals-history';
+// **ADD MEAL VALIDATION IMPORT**
+import {
+  validateMealUpload
+} from '@/lib/meal-validation';
+import { MealType } from '@/types/database';
 import { 
   FoodAnalysisResponse, 
   FoodAnalysisResult, 
@@ -253,6 +258,59 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     let mealId;
     if (saveToHistory) {
       try {
+        // **ADD MEAL VALIDATION BEFORE SAVING**
+        const mealType = (analysisResult.meal_type as MealType) || 'snack'; // 기본값으로 스낵 설정
+        const validationResult = await validateMealUpload(
+          user.id,
+          mealType,
+          new Date()
+        );
+
+        if (!validationResult.isValid) {
+          // 검증 실패 시 상세한 에러 정보 반환
+          const errorDetails = {
+            timeValidation: validationResult.timeValidation,
+            duplicateValidation: validationResult.duplicateValidation,
+            canProceed: validationResult.canProceed
+          };
+
+          logSecurityEvent('MEAL_VALIDATION_FAILED', {
+            userId: user.id,
+            imageHash,
+            mealType: analysisResult.meal_type,
+            validationResult: errorDetails,
+            clientIP,
+            userAgent
+          });
+
+          return NextResponse.json({
+            success: false,
+            error: validationResult.message,
+            validation: {
+              timeValidation: {
+                isValid: validationResult.timeValidation.isValid,
+                message: validationResult.timeValidation.message,
+                allowedMealTypes: validationResult.timeValidation.allowedMealTypes,
+                currentMealType: validationResult.timeValidation.currentMealType,
+                restrictionReason: validationResult.timeValidation.restrictionReason
+              },
+              duplicateValidation: {
+                isDuplicate: validationResult.duplicateValidation.isDuplicate,
+                message: validationResult.duplicateValidation.message,
+                existingMeal: validationResult.duplicateValidation.existingMeal
+              }
+            },
+            analysis: analysisResult // 분석 결과는 여전히 제공
+          }, { 
+            status: 422, // Unprocessable Entity - 요청은 유효하지만 규칙 위반
+            headers: {
+              'X-Validation-Failed': 'true',
+              'X-Validation-Type': !validationResult.timeValidation.isValid ? 'time' : 'duplicate'
+            }
+          });
+        }
+
+        // 검증 성공 시 기존 저장 로직 진행
         const saveResult = await saveMealAnalysis(
           user.id, 
           analysisResult, 
@@ -261,6 +319,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         );
         if (saveResult.success) {
           mealId = saveResult.mealId;
+          
+          // 검증 성공 로깅
+          logSecurityEvent('MEAL_VALIDATION_SUCCESS', {
+            userId: user.id,
+            imageHash,
+            mealId,
+            mealType: analysisResult.meal_type,
+            validationResult: {
+              timeValid: validationResult.timeValidation.isValid,
+              duplicateValid: !validationResult.duplicateValidation.isDuplicate
+            },
+            clientIP,
+            userAgent
+          });
         } else {
           console.error('Failed to save meal analysis:', saveResult.error);
         }
