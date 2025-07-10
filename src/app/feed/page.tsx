@@ -3,8 +3,9 @@
 import { AuthGuard } from '@/components/auth'
 import { useAuth } from '@/contexts/auth-context'
 import { MealPostCard } from '@/components/meals'
+import CalorieSummaryWidget from '@/components/CalorieSummaryWidget'
 import { useState, useEffect } from 'react'
-import { Heart, Plus, Calendar, TrendingUp, Users, Home, PlusCircle } from 'lucide-react'
+import { Heart, Plus, Home, PlusCircle } from 'lucide-react'
 import Link from 'next/link'
 import { MealAnalysisRecord } from '@/types/food-analysis'
 
@@ -75,6 +76,22 @@ function FeedContent() {
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'mine' | 'partner'>('all')
   const [meals, setMeals] = useState<typeof demoMeals>([])
 
+  // 칼로리 위젯용 데모 데이터
+  const calorieData = {
+    current: 650,
+    goal: 1800,
+    partner: {
+      current: 1000,
+      goal: 2000
+    }
+  }
+
+  const weeklyData = {
+    labels: ['월', '화', '수', '목', '금', '토', '일'],
+    userCalories: [1200, 1400, 650, 0, 0, 0, 0], // 오늘까지의 데이터
+    partnerCalories: [1800, 1600, 1000, 0, 0, 0, 0]
+  }
+
   useEffect(() => {
     // 실제로는 API에서 데이터를 가져올 예정
     setMeals(demoMeals)
@@ -135,81 +152,14 @@ function FeedContent() {
       {/* Main Content */}
       <div className="max-w-4xl mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Sidebar - 요약 위젯들 */}
-          <div className="lg:col-span-1 space-y-4">
-            {/* 오늘의 칼로리 요약 */}
-            <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-lg border border-gray-200/50 p-6 hover:shadow-xl transition-all duration-300">
-              <div className="flex items-center mb-4">
-                <TrendingUp className="w-5 h-5 text-green-500 mr-2" />
-                <h3 className="font-semibold text-gray-800">오늘의 칼로리</h3>
-              </div>
-              
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">내 칼로리</span>
-                  <span className="font-semibold text-gray-800">650 / 1,800</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-gradient-to-r from-green-400 to-green-500 h-2 rounded-full" style={{width: '36%'}}></div>
-                </div>
-                
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">파트너 칼로리</span>
-                  <span className="font-semibold text-gray-800">1,000 / 2,000</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-gradient-to-r from-pink-400 to-pink-500 h-2 rounded-full" style={{width: '50%'}}></div>
-                </div>
-              </div>
-            </div>
-
-            {/* 이번 주 목표 */}
-            <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-lg border border-gray-200/50 p-6 hover:shadow-xl transition-all duration-300">
-              <div className="flex items-center mb-4">
-                <Calendar className="w-5 h-5 text-blue-500 mr-2" />
-                <h3 className="font-semibold text-gray-800">이번 주 목표</h3>
-              </div>
-              
-              <div className="space-y-3">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600 mb-1">3 / 7</div>
-                  <div className="text-sm text-gray-600">식단 인증 완료</div>
-                </div>
-                
-                <div className="flex justify-center space-x-1">
-                  {[1,2,3,4,5,6,7].map((day) => (
-                    <div 
-                      key={day} 
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold
-                        ${day <= 3 
-                          ? 'bg-gradient-to-r from-green-400 to-green-500 text-white' 
-                          : 'bg-gray-200 text-gray-500'
-                        }`}
-                    >
-                      {day}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* 커플 연결 상태 */}
-            <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-lg border border-gray-200/50 p-6 hover:shadow-xl transition-all duration-300">
-              <div className="flex items-center mb-4">
-                <Users className="w-5 h-5 text-pink-500 mr-2" />
-                <h3 className="font-semibold text-gray-800">커플 현황</h3>
-              </div>
-              
-              <div className="text-center space-y-2">
-                <div className="flex items-center justify-center space-x-2 text-pink-600">
-                  <Heart className="w-4 h-4 fill-current" />
-                  <span className="font-semibold">함께 진행 중</span>
-                </div>
-                <div className="text-sm text-gray-600">
-                  {user?.email?.split('@')[0]} & 시은
-                </div>
-              </div>
-            </div>
+          {/* Left Sidebar - 칼로리 요약 위젯 */}
+          <div className="lg:col-span-1">
+            <CalorieSummaryWidget
+              dailyData={calorieData}
+              weeklyData={weeklyData}
+              userName={user?.email?.split('@')[0] || "나"}
+              partnerName="시은"
+            />
           </div>
 
           {/* Main Feed Area */}

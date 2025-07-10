@@ -462,7 +462,7 @@
               1
             ],
             "details": "Use Material-UI Card component to design the meal post card with props for image, calories, and time.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Ensure each card displays the correct meal information and is styled consistently."
           },
           {
@@ -473,7 +473,7 @@
               1
             ],
             "details": "Create a summary widget using a chart library like Chart.js to visualize calorie data.",
-            "status": "pending",
+            "status": "in-progress",
             "testStrategy": "Check that the widget updates correctly with daily and weekly calorie data."
           },
           {
@@ -688,7 +688,7 @@
     ],
     "metadata": {
       "created": "2025-07-06T11:48:37.796Z",
-      "updated": "2025-07-10T14:35:14.821Z",
+      "updated": "2025-07-10T15:00:35.476Z",
       "description": "Tasks for master context"
     }
   }
