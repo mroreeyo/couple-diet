@@ -26,7 +26,7 @@ const demoMeals: (MealAnalysisRecord & { authorName?: string; authorEmail?: stri
       ]
     },
     created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // 30분 전
-    authorName: '지영',
+    authorName: '시은',
     authorEmail: 'jiyoung@example.com'
   },
   {
@@ -206,7 +206,7 @@ function FeedContent() {
                   <span className="font-semibold">함께 진행 중</span>
                 </div>
                 <div className="text-sm text-gray-600">
-                  {user?.email?.split('@')[0]} & 지영
+                  {user?.email?.split('@')[0]} & 시은
                 </div>
               </div>
             </div>

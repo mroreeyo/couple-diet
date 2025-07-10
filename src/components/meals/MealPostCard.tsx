@@ -100,7 +100,7 @@ export function MealPostCard({
             )}
             <Image
               src={meal.image_url}
-              alt={foods.length > 0 ? foods.map(f => f.name).join(', ') : '식사 이미지'}
+              alt={foods.length > 0 ? foods.map(f => f?.name || '알 수 없는 음식').join(', ') : '식사 이미지'}
               fill
               className={`object-cover transition-all duration-300 group-hover:scale-105 ${
                 imageLoading ? 'opacity-0' : 'opacity-100'
