@@ -565,7 +565,7 @@
               2
             ],
             "details": "Implement event listeners for date clicks and create a modal or new screen to display meal details.\n<info added on 2025-07-13T11:48:45.323Z>\nInvestigate the issue with the partner tab on the Feed page. The debug log analysis indicates that the partner is not connected (`partner_id: null`, `partner_connected: false`), and both filters are searching for the current user ID only. Implement a solution to display appropriate UI when the partner is not connected, including a partner connection guidance message, demo partner data, or a button to encourage partner connection.\n</info added on 2025-07-13T11:48:45.323Z>",
-            "status": "in-progress",
+            "status": "done",
             "testStrategy": "Test date click interactions to ensure correct data is displayed for each date."
           },
           {
@@ -575,8 +575,8 @@
             "dependencies": [
               2
             ],
-            "details": "Ensure the calendar updates dynamically with real-time data from the backend.",
-            "status": "pending",
+            "details": "Ensure the calendar updates dynamically with real-time data from the backend.\n<info added on 2025-07-13T14:02:39.398Z>\nCalendar backend integration progress update:\n\n1. ✅ Monthly meal data retrieval API creation completed\n   - Implemented `/api/meals/history` endpoint\n   - Year/month based data retrieval functionality\n   - User/partner data distinction processing\n   - Added logic for calculating status by date\n\n2. 🔄 Calendar component modifications in progress\n   - Changing from demo data to actual API calls\n   - Added authentication token handling via useAuth hook\n   - Attempting to implement loading state and error handling UI\n   - Currently encountering syntax errors while modifying JSX structure\n\n3. 🔧 Next steps required\n   - Organize JSX structure and resolve syntax errors\n   - Test and debug API call logic\n   - Verify integration of actual data with UI\n\nCurrently facing technical debt, so the plan is to safely organize the JSX structure of the calendar component in the next session.\n</info added on 2025-07-13T14:02:39.398Z>",
+            "status": "in-progress",
             "testStrategy": "Perform integration testing with backend services to verify data accuracy and update frequency."
           },
           {
@@ -743,7 +743,7 @@
     ],
     "metadata": {
       "created": "2025-07-06T11:48:37.796Z",
-      "updated": "2025-07-10T16:01:51.974Z",
+      "updated": "2025-07-13T13:57:22.436Z",
       "description": "Tasks for master context"
     }
   }
