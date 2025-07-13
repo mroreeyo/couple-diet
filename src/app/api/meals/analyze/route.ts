@@ -64,53 +64,29 @@ function initializeGeminiClient(): GoogleGenerativeAI {
   return new GoogleGenerativeAI(apiKey);
 }
 
-// 한국어 최적화 음식 분석 프롬프트 (개선된 버전)
+// 간단하고 직접적인 음식 분석 프롬프트 (테스트용)
 const KOREAN_FOOD_ANALYSIS_PROMPT = `
-당신은 한국 음식 전문 영양 분석가입니다. 제공된 음식 이미지를 분석하여 정확한 칼로리 정보를 제공해주세요.
+이미지에 있는 음식을 분석해주세요. 
 
-한국 음식 특성:
-- 김치, 나물, 반찬류는 일반적으로 저칼로리 (20-50kcal)
-- 밥류: 흰쌀밥(1공기) 210kcal, 현미밥 190kcal, 잡곡밥 200kcal
-- 국물류: 맑은국 20-40kcal, 된장찌개 80-120kcal, 김치찌개 150-200kcal
-- 고기류: 불고기(100g) 250kcal, 갈비(100g) 350kcal, 삼겹살(100g) 330kcal
-- 생선류: 구이(100g) 150-200kcal, 조림(100g) 180-250kcal
-- 면류: 냉면(1그릇) 400kcal, 라면(1그릇) 500kcal, 우동(1그릇) 350kcal
-
-분석 요구사항:
-1. 이미지에서 식별 가능한 모든 음식을 찾아주세요
-2. 각 음식의 대략적인 양(그릇, 개, 컵, 접시 등)을 정확히 추정해주세요
-3. 한국 음식 표준 칼로리 기준으로 계산해주세요
-4. 전체 식사의 칼로리 총합을 구해주세요
-5. 식사 시간대를 추정해주세요 (아침: 토스트/죽류, 점심/저녁: 밥+찬, 간식: 과자/음료)
-
-신뢰도 기준:
-- 명확히 보이는 일반적인 한국 음식: 0.8-0.95
-- 부분적으로 보이거나 양이 불분명한 음식: 0.6-0.8
-- 잘 보이지 않거나 생소한 음식: 0.4-0.6
-
-응답은 반드시 다음 JSON 형식으로만 제공해주세요:
+다음 JSON 형식으로만 응답해주세요:
 
 {
   "foods": [
     {
-      "name": "정확한 한국 음식명",
-      "calories": 칼로리숫자,
-      "amount": "구체적인 분량설명 (예: 1공기, 1그릇, 1인분, 100g)",
-      "confidence": 0.0~1.0 신뢰도
+      "name": "음식 이름",
+      "calories": 칼로리,
+      "amount": "분량",
+      "confidence": 0.8
     }
   ],
   "total_calories": 총칼로리,
-  "meal_type": "breakfast|lunch|dinner|snack",
-  "analysis_confidence": 전체분석신뢰도(0.0~1.0),
+  "meal_type": "snack",
+  "analysis_confidence": 0.8,
   "analyzed_at": "${new Date().toISOString()}"
 }
 
-주의사항:
-- 한국 음식 기준으로만 분석해주세요
-- 칼로리는 한국인 표준 분량 기준으로 계산해주세요
-- 불확실한 음식은 낮은 신뢰도로 표시해주세요
-- JSON 형식 외의 다른 텍스트는 절대 포함하지 마세요
-- 보이지 않는 음식은 추측하지 마세요
+이미지에 음식이 보이면 반드시 foods 배열에 적어도 하나는 포함해주세요.
+JSON 외의 다른 텍스트는 포함하지 마세요.
 `;
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -429,7 +405,7 @@ async function analyzeImageWithGemini(
       },
     });
 
-    // Gemini API 요청 구성 (최적화)
+    // Gemini API 요청 구성 (수정된 형식)
     const imagePart = {
       inlineData: {
         data: processedImage.analysis.base64!,
@@ -437,7 +413,19 @@ async function analyzeImageWithGemini(
       }
     };
 
-    const prompt = [KOREAN_FOOD_ANALYSIS_PROMPT, imagePart];
+    // 올바른 Gemini API 형식으로 수정
+    const prompt = [
+      { text: KOREAN_FOOD_ANALYSIS_PROMPT },
+      imagePart
+    ];
+
+    // 디버깅: 이미지 정보 확인
+    console.log('=== 이미지 정보 디버깅 ===');
+    console.log('이미지 형식:', processedImage.analysis.format);
+    console.log('이미지 크기:', processedImage.analysis.size);
+    console.log('Base64 길이:', processedImage.analysis.base64?.length);
+    console.log('MIME 타입:', `image/${processedImage.analysis.format}`);
+    console.log('========================');
 
     // API 호출 (개선된 타임아웃 설정)
     const timeoutMs = Math.min(CONFIG.apiTimeout + (retryCount * 5000), 45000); // 점진적 타임아웃 증가
@@ -458,6 +446,12 @@ async function analyzeImageWithGemini(
       throw new Error('Gemini API 텍스트 응답이 없습니다.');
     }
 
+    // 디버깅: Gemini 원시 응답 확인
+    console.log('=== Gemini 원시 응답 ===');
+    console.log('텍스트 길이:', text.length);
+    console.log('원시 텍스트:', text);
+    console.log('======================');
+
     // JSON 파싱
     let rawJsonData: any;
     try {
@@ -474,6 +468,13 @@ async function analyzeImageWithGemini(
       console.error('파싱 에러:', parseError);
       throw new Error('AI 응답을 파싱할 수 없습니다.');
     }
+
+    // 디버깅: 실제 Gemini 응답 확인
+    console.log('=== Gemini API 실제 응답 ===');
+    console.log('rawJsonData:', JSON.stringify(rawJsonData, null, 2));
+    console.log('foods 배열:', rawJsonData.foods);
+    console.log('foods 길이:', rawJsonData.foods ? rawJsonData.foods.length : 'undefined');
+    console.log('===========================');
 
     // 개선된 응답 처리기를 사용한 검증 및 정제
     const imageHash = crypto.createHash('md5').update(processedImage.analysis.base64!).digest('hex');
