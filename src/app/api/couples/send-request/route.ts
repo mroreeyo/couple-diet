@@ -1,159 +1,168 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseAdmin } from '@/lib/supabase'
-import { 
-  createSuccessResponse, 
-  createErrorResponse, 
-  extractBearerToken,
-  validateEmail,
-  logApiRequest,
-  logApiError,
-  getRequestInfo
-} from '@/lib/api-utils'
 
 export async function POST(request: NextRequest) {
-  const { userAgent, ip } = getRequestInfo(request)
-  logApiRequest('POST', '/api/couples/send-request', userAgent, ip)
+  console.log('🔗 API 호출됨!')
   
   try {
-    // Authorization 헤더에서 토큰 추출
-    const authHeader = request.headers.get('authorization')
-    const token = extractBearerToken(authHeader || null)
+    console.log('✅ Try 블록 시작')
     
-    if (!token) {
-      return createErrorResponse('인증 토큰이 필요합니다.', 401)
-    }
-    
-    // 요청 본문 파싱
     const body = await request.json()
+    console.log('📋 Request body:', body)
+    
     const { partnerEmail } = body
     
-    // 입력 검증
-    if (!partnerEmail || typeof partnerEmail !== 'string') {
-      return createErrorResponse('파트너 이메일이 필요합니다.', 400)
-    }
+    // Authorization 헤더에서 토큰 추출
+    const authHeader = request.headers.get('authorization')
+    const token = authHeader?.replace('Bearer ', '')
     
-    if (!validateEmail(partnerEmail)) {
-      return createErrorResponse('올바른 이메일 형식이 아닙니다.', 400)
+    if (!token) {
+      console.log('❌ No token provided')
+      return NextResponse.json({
+        success: false,
+        error: '인증 토큰이 필요합니다.'
+      }, { status: 401 })
     }
     
     // Supabase Admin 클라이언트 생성
     const supabase = createSupabaseAdmin()
+    console.log('🗄️ Supabase admin client created')
     
     // 토큰으로 현재 사용자 정보 조회
     const { data: userData, error: userError } = await supabase.auth.getUser(token)
     
     if (userError || !userData.user) {
-      return createErrorResponse('유효하지 않은 토큰입니다.', 401)
+      console.log('❌ Invalid token:', userError)
+      return NextResponse.json({
+        success: false,
+        error: '유효하지 않은 토큰입니다.'
+      }, { status: 401 })
     }
     
-    const currentUser = userData.user
-    
-    // 자기 자신에게 요청 보내는 것 방지
-    if (currentUser.email === partnerEmail) {
-      return createErrorResponse('자기 자신에게는 커플 요청을 보낼 수 없습니다.', 400)
-    }
+    const currentUserId = userData.user.id
+    console.log('👤 Current user ID:', currentUserId)
     
     // 파트너 사용자 조회
     const { data: partnerData, error: partnerError } = await supabase
       .from('users')
-      .select('id, email, display_name, partner_id')
+      .select('id')
       .eq('email', partnerEmail)
       .single()
     
     if (partnerError || !partnerData) {
-      return createErrorResponse('해당 이메일의 사용자를 찾을 수 없습니다.', 404)
+      console.log('❌ Partner not found:', partnerError)
+      return NextResponse.json({
+        success: false,
+        error: '해당 이메일의 사용자를 찾을 수 없습니다.'
+      }, { status: 404 })
     }
     
-    // 현재 사용자 정보 조회
-    const { data: currentUserData, error: currentUserError } = await supabase
-      .from('users')
-      .select('id, email, display_name, partner_id')
-      .eq('id', currentUser.id)
+    const partnerUserId = partnerData.id
+    console.log('👥 Partner user ID:', partnerUserId)
+    
+    // 자기 자신에게 요청 방지
+    if (currentUserId === partnerUserId) {
+      console.log('❌ Self request attempted')
+      return NextResponse.json({
+        success: false,
+        error: '자기 자신에게는 커플 요청을 보낼 수 없습니다.'
+      }, { status: 400 })
+    }
+    
+    console.log('🔍 기존 couples 데이터 확인 중...')
+    
+    // 기존 관계 확인 (모든 상태 포함)
+    const { data: existingCouples, error: checkError } = await supabase
+      .from('couples')
+      .select('*')
+      .or(`and(user1_id.eq.${currentUserId},user2_id.eq.${partnerUserId}),and(user1_id.eq.${partnerUserId},user2_id.eq.${currentUserId})`)
+    
+    if (checkError) {
+      console.log('❌ 기존 관계 확인 오류:', checkError)
+      return NextResponse.json({
+        success: false,
+        error: '기존 관계 확인 중 오류 발생'
+      }, { status: 500 })
+    }
+    
+    console.log('🔍 기존 관계 데이터:', existingCouples)
+    
+    if (existingCouples && existingCouples.length > 0) {
+      console.log('⚠️ 기존 관계가 존재합니다:', existingCouples[0])
+      
+      const existing = existingCouples[0]
+      
+      if (existing.relationship_status === 'active') {
+        return NextResponse.json({
+          success: false,
+          error: '이미 활성화된 커플 관계가 존재합니다.'
+        }, { status: 400 })
+      } else if (existing.relationship_status === 'pending') {
+        return NextResponse.json({
+          success: false,
+          error: '이미 대기 중인 커플 요청이 존재합니다.'
+        }, { status: 400 })
+      } else {
+        // 다른 상태 (cancelled, rejected 등)인 경우 기존 데이터 삭제 후 새로 생성
+        console.log('🗑️ 기존 관계 삭제 중...')
+        const { error: deleteError } = await supabase
+          .from('couples')
+          .delete()
+          .eq('id', existing.id)
+        
+        if (deleteError) {
+          console.log('❌ 기존 관계 삭제 오류:', deleteError)
+          return NextResponse.json({
+            success: false,
+            error: '기존 관계 정리 중 오류 발생'
+          }, { status: 500 })
+        }
+        console.log('✅ 기존 관계 삭제 완료')
+      }
+    }
+    
+    console.log('💕 새로운 커플 요청 생성 중...')
+    
+    // 새로운 커플 요청 생성
+    const { data: newCouple, error: insertError } = await supabase
+      .from('couples')
+      .insert({
+        user1_id: currentUserId,
+        user2_id: partnerUserId,
+        requested_by: currentUserId,
+        relationship_status: 'pending'
+      })
+      .select()
       .single()
     
-    if (currentUserError || !currentUserData) {
-      return createErrorResponse('현재 사용자 정보를 찾을 수 없습니다.', 404)
+    if (insertError) {
+      console.log('❌ 삽입 오류:', insertError)
+      return NextResponse.json({
+        success: false,
+        error: '커플 요청 생성 중 오류 발생'
+      }, { status: 500 })
     }
     
-    // 이미 파트너가 있는지 확인
-    if (currentUserData.partner_id) {
-      return createErrorResponse('이미 커플 관계가 있습니다.', 400)
-    }
+    console.log('✅ 커플 요청 생성 성공:', newCouple)
     
-    if (partnerData.partner_id) {
-      return createErrorResponse('상대방이 이미 다른 사람과 커플 관계입니다.', 400)
-    }
-    
-    // 기존 요청 확인 (보낸 요청 또는 받은 요청)
-    const { data: existingRequests, error: requestError } = await supabase
-      .from('couples')
-      .select('id, user1_id, user2_id, relationship_status, requested_by')
-      .or(`and(user1_id.eq.${currentUserData.id},user2_id.eq.${partnerData.id}),and(user1_id.eq.${partnerData.id},user2_id.eq.${currentUserData.id})`)
-      .in('relationship_status', ['pending', 'active'])
-    
-    if (requestError) {
-      logApiError('/api/couples/send-request', requestError, { userId: currentUser.id, partnerEmail, ip })
-      return createErrorResponse('요청 확인 중 오류가 발생했습니다.', 500)
-    }
-    
-    if (existingRequests && existingRequests.length > 0) {
-      const existingRequest = existingRequests[0]
-      
-      if (existingRequest.relationship_status === 'active') {
-        return createErrorResponse('이미 커플 관계가 활성화되어 있습니다.', 400)
-      }
-      
-      if (existingRequest.relationship_status === 'pending') {
-        if (existingRequest.requested_by === currentUserData.id) {
-          return createErrorResponse('이미 커플 요청을 보냈습니다.', 400)
-        } else {
-          return createErrorResponse('상대방이 이미 당신에게 커플 요청을 보냈습니다. 요청을 수락해주세요.', 400)
-        }
-      }
-    }
-    
-    // 커플 요청 보내기 (Supabase 함수 사용)
-    const { data: requestResult, error: sendError } = await supabase
-      .rpc('send_couple_request', {
-        p_user1_id: currentUserData.id,
-        p_user2_id: partnerData.id
-      })
-    
-    if (sendError) {
-      logApiError('/api/couples/send-request', sendError, { userId: currentUser.id, partnerEmail, ip })
-      return createErrorResponse('커플 요청 전송 중 오류가 발생했습니다.', 500)
-    }
-    
-    // 성공 로그
-    console.log(`[${new Date().toISOString()}] Couple request sent:`, {
-      from: currentUserData.email,
-      to: partnerData.email,
-      fromUserId: currentUserData.id,
-      toUserId: partnerData.id,
-      ip
+    return NextResponse.json({
+      success: true,
+      message: '커플 요청이 성공적으로 전송되었습니다.',
+      data: newCouple
     })
     
-    return createSuccessResponse({
-      requestId: requestResult,
-      from: {
-        id: currentUserData.id,
-        email: currentUserData.email,
-        displayName: currentUserData.display_name
-      },
-      to: {
-        id: partnerData.id,
-        email: partnerData.email,
-        displayName: partnerData.display_name
-      }
-    }, '커플 요청이 성공적으로 전송되었습니다.')
-    
   } catch (error) {
-    logApiError('/api/couples/send-request', error, { ip })
-    return createErrorResponse('서버 오류가 발생했습니다.', 500)
+    console.log('💥 에러 발생:', error)
+    return NextResponse.json({
+      success: false,
+      error: '서버 오류가 발생했습니다.'
+    }, { status: 500 })
   }
 }
 
-// GET 메서드는 지원하지 않음
 export async function GET() {
-  return createErrorResponse('지원하지 않는 메서드입니다.', 405)
+  return NextResponse.json({
+    success: false,
+    error: '지원하지 않는 메서드입니다.'
+  }, { status: 405 })
 } 

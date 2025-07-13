@@ -443,7 +443,7 @@
         "dependencies": [
           4
         ],
-        "status": "in-progress",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -473,7 +473,7 @@
               1
             ],
             "details": "Create a summary widget using a chart library like Chart.js to visualize calorie data.",
-            "status": "in-progress",
+            "status": "done",
             "testStrategy": "Check that the widget updates correctly with daily and weekly calorie data."
           },
           {
@@ -483,8 +483,8 @@
             "dependencies": [
               1
             ],
-            "details": "Use Axios to fetch data from the backend API and sort it using JavaScript's sort function.",
-            "status": "pending",
+            "details": "Use Axios to fetch data from the backend API and sort it using JavaScript's sort function.\n<info added on 2025-07-10T15:31:02.284Z>\nAPI testing successful. \n\nCompleted tasks:\n1. Implemented /api/meals GET endpoint with Bearer token authentication, supporting query parameters: limit, offset, filter, date_from, date_to, user/partner data filtering, conversion to MealAnalysisRecord format, and pagination.\n2. Frontend API integration completed with Supabase session-based authentication, Axios for API calls, error handling, and loading state management, functioning correctly on both feed and test pages.\n3. Resolved authentication system issues by transitioning from localStorage to Supabase session-based authentication for consistent authentication methods.\n\nTest results confirmed successful data retrieval on the API testing page.\n</info added on 2025-07-10T15:31:02.284Z>",
+            "status": "done",
             "testStrategy": "Test API calls for successful data retrieval and correct chronological sorting."
           },
           {
@@ -494,8 +494,8 @@
             "dependencies": [
               4
             ],
-            "details": "Use a library like react-infinite-scroll-component to implement infinite scrolling.",
-            "status": "pending",
+            "details": "Use a library like react-infinite-scroll-component to implement infinite scrolling.\n<info added on 2025-07-10T15:33:55.375Z>\nTask 8.5 completed - Infinite scrolling implementation successful.\n\nCompleted tasks:\n\n1. React-infinite-scroll-component library installed successfully.\n2. Pagination state management implemented:\n   - hasMore: indicates whether more data is available.\n   - offset: current loaded data offset.\n   - initialLoading: distinguishes between initial and additional loading.\n3. fetchMeals function improved for infinite scrolling:\n   - Added currentOffset and isAppend parameters.\n   - Adjusted limit to load 10 items at a time.\n   - Differentiated between appending new data vs. replacing existing data.\n   - Handled API pagination response.\n4. Infinite scroll UI implemented:\n   - Applied InfiniteScroll component.\n   - Customized loading indicator and end message.\n   - Handled errors and empty states.\n5. User experience enhancements:\n   - Reset data on filter changes.\n   - Refresh functionality.\n   - Smooth loading animations.\n\nPerformance optimizations:\n- Separated initial loading from additional loading.\n- Implemented logic to prevent duplicate requests.\n- Confirmed no TypeScript compilation errors.\n\nTesting completed: Data loads progressively while scrolling on the feed page without performance issues.\n</info added on 2025-07-10T15:33:55.375Z>",
+            "status": "done",
             "testStrategy": "Verify that scrolling loads additional meal posts without performance issues."
           },
           {
@@ -506,7 +506,7 @@
               4
             ],
             "details": "Modify data fetching logic to include partner's meal data and merge it with the user's feed.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Ensure that both user's and partner's meals are displayed correctly in the feed."
           },
           {
@@ -520,7 +520,7 @@
               6
             ],
             "details": "Use tools like Lighthouse for performance testing and optimize component rendering.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Run performance tests and ensure the feed loads quickly and efficiently."
           }
         ]
@@ -536,7 +536,62 @@
           8
         ],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Design Calendar UI",
+            "description": "Create the user interface design for the monthly calendar screen.",
+            "dependencies": [],
+            "details": "Design should include a grid layout for days, highlighting for meal verification status, and clickable dates.\n<info added on 2025-07-10T15:53:38.162Z>\nTask 9.1 \"Calendar UI Design\" is complete. \n\nImplemented Calendar UI features:\n1. Consistent with existing app design\n   - Glassmorphism style (bg-white/80 backdrop-blur-xl)\n   - Pink-orange-yellow gradient background\n   - Rounded corners, shadow effects\n\n2. Visual differentiation by meal status\n   - Both completed: Pink-orange gradient + heart icon\n   - I completed: Green-emerald gradient + check icon  \n   - Partner only: Purple-indigo gradient + heart icon\n   - Partially completed: Yellow-orange gradient + circle icon\n   - No record: Gray + transparency\n\n3. Interactive elements\n   - Hover effect (scale-105)\n   - Current date ring indicator (ring-2 ring-pink-500)\n   - Clickable date cells\n   - Monthly navigation buttons\n\n4. Monthly statistics dashboard\n   - Completion rate, recorded days, average calories displayed\n   - User and partner distinction\n\n5. Sidebar features\n   - Status legend display\n   - Detailed information for selected date\n   - Quick action buttons (view feed, add meal)\n\n6. Responsive design\n   - Mobile: 1-column layout\n   - Tablet: 2-column layout  \n   - Desktop: 4-column layout\n\n7. Dashboard integration\n   - Calendar card added (indigo-purple gradient)\n   - Consistent styling\n\nVisual confirmation available through demo data, with data generated only up to the current date for realistic display.\n</info added on 2025-07-10T15:53:38.162Z>",
+            "status": "done",
+            "testStrategy": "Review design mockups with stakeholders to ensure all requirements are met."
+          },
+          {
+            "id": 2,
+            "title": "Implement Calendar View",
+            "description": "Develop the calendar view component to display the monthly calendar.",
+            "dependencies": [
+              1
+            ],
+            "details": "Use a suitable library or framework to implement the calendar grid and ensure it can highlight dates based on meal verification status.\n<info added on 2025-07-10T16:01:27.012Z>\nTask 9.2 \"Implement Calendar View\" is complete!\n\nSignificant improvements to the calendar functionality include:\n\n1. 📱 **Responsive Enhancements and Accessibility**\n   - Keyboard navigation (←→ to switch months, Home to return to today)\n   - Added aria-label and role attributes for screen reader support\n   - Focus management using tabIndex\n   - Visual focus indication with focus:outline and focus:ring\n\n2. 🎯 **Monthly Goal Setting Feature**\n   - Ability to set goal days (1-31 days)\n   - Progress bar for tracking\n   - Real-time display of achieved/remaining days\n   - Edit mode toggle with a settings icon\n\n3. 🎨 **Animations and Visual Improvements**\n   - Hover effect of hover:scale-105 on all cards\n   - Animate-pulse effect for the current date\n   - Animate-pulse effect for meal record points\n   - Slide-in animation for the detailed view of selected dates\n   - Smooth transition with transition-all duration-300\n\n4. 🖱️ **Enhanced Interactions**\n   - Toggle action on date click (select/deselect)\n   - Automatic reset of selected date when changing months\n   - Utilization of hardware acceleration with transform-gpu\n   - Click feedback with active:scale-95\n\n5. 📊 **Improved Data Display**\n   - Hover effects on monthly statistics cards\n   - Background color differentiation for users/partners (blue-50, purple-50)\n   - Increased icon size based on status (2.5 → 2.5h-2.5)\n   - Clearer layout and spacing\n\n6. 🎛️ **Sticky Header**\n   - Month navigation always visible during scrolling\n   - Fixed above other elements with z-10\n\n7. 💡 **User Guide**\n   - Keyboard shortcut guidance messages\n   - Intuitive icons and labeling\n\nThe calendar is now a fully functional and user-friendly monthly meal management tool!\n</info added on 2025-07-10T16:01:27.012Z>",
+            "status": "done",
+            "testStrategy": "Unit test the calendar component to ensure correct rendering of dates and status highlights."
+          },
+          {
+            "id": 3,
+            "title": "Develop Date Click Functionality",
+            "description": "Enable users to click on dates to view detailed meal information.",
+            "dependencies": [
+              2
+            ],
+            "details": "Implement event listeners for date clicks and create a modal or new screen to display meal details.\n<info added on 2025-07-13T11:48:45.323Z>\nInvestigate the issue with the partner tab on the Feed page. The debug log analysis indicates that the partner is not connected (`partner_id: null`, `partner_connected: false`), and both filters are searching for the current user ID only. Implement a solution to display appropriate UI when the partner is not connected, including a partner connection guidance message, demo partner data, or a button to encourage partner connection.\n</info added on 2025-07-13T11:48:45.323Z>",
+            "status": "in-progress",
+            "testStrategy": "Test date click interactions to ensure correct data is displayed for each date."
+          },
+          {
+            "id": 4,
+            "title": "Integrate Meal Verification Data",
+            "description": "Connect the calendar view with backend services to fetch meal verification status.",
+            "dependencies": [
+              2
+            ],
+            "details": "Ensure the calendar updates dynamically with real-time data from the backend.",
+            "status": "pending",
+            "testStrategy": "Perform integration testing with backend services to verify data accuracy and update frequency."
+          },
+          {
+            "id": 5,
+            "title": "User Testing and Feedback",
+            "description": "Conduct user testing sessions to gather feedback on the calendar screen functionality.",
+            "dependencies": [
+              3,
+              4
+            ],
+            "details": "Organize sessions with end-users to test the calendar screen and gather feedback for improvements.",
+            "status": "pending",
+            "testStrategy": "Analyze user feedback and identify areas for improvement or bug fixes."
+          }
+        ]
       },
       {
         "id": 10,
@@ -688,7 +743,7 @@
     ],
     "metadata": {
       "created": "2025-07-06T11:48:37.796Z",
-      "updated": "2025-07-10T15:00:35.476Z",
+      "updated": "2025-07-10T16:01:51.974Z",
       "description": "Tasks for master context"
     }
   }

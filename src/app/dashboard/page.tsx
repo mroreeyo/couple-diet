@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/auth-context'
 import { CoupleConnectionWidget } from '@/components/couples/CoupleConnectionWidget'
 import { LogOut, User } from 'lucide-react'
 import { useState } from 'react'
+import Link from 'next/link'
 
 function DashboardContent() {
   const { user, signOut } = useAuth()
@@ -103,12 +104,12 @@ function DashboardContent() {
               <p className="text-gray-600 mb-4">
                 나와 파트너의 식단을 함께 확인해보세요.
               </p>
-              <a 
+              <Link 
                 href="/feed"
                 className="block w-full text-center bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 text-white py-2 px-4 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
               >
                 피드 보기
-              </a>
+              </Link>
             </div>
 
             <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-lg border border-gray-200/50 p-6 hover:shadow-xl transition-all duration-300">
@@ -118,12 +119,27 @@ function DashboardContent() {
               <p className="text-gray-600 mb-4">
                 오늘의 식사를 기록해보세요.
               </p>
-              <a 
+              <Link 
                 href="/meals/new"
                 className="block w-full text-center bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white py-2 px-4 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
               >
                 식사 추가하기
-              </a>
+              </Link>
+            </div>
+
+            <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-lg border border-gray-200/50 p-6 hover:shadow-xl transition-all duration-300">
+              <h3 className="text-xl font-semibold text-gray-800 mb-4">
+                식단 캘린더 📅
+              </h3>
+              <p className="text-gray-600 mb-4">
+                월간 식단 기록 현황을 확인해보세요.
+              </p>
+              <Link 
+                href="/calendar"
+                className="block w-full text-center bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white py-2 px-4 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
+              >
+                캘린더 보기
+              </Link>
             </div>
 
             {/* 커플 연결 위젯 - 전체 너비로 확장 */}
@@ -139,24 +155,24 @@ function DashboardContent() {
                 개발된 기능들을 테스트해보세요.
               </p>
               <div className="space-y-2">
-                <a 
+                <Link 
                   href="/meals/new" 
                   className="block w-full text-center bg-blue-100 hover:bg-blue-200 text-blue-700 py-2 px-4 rounded-lg transition-all duration-200 text-sm"
                 >
                   식사 업로드
-                </a>
-                <a 
+                </Link>
+                <Link 
                   href="/test-realtime-validation" 
                   className="block w-full text-center bg-green-100 hover:bg-green-200 text-green-700 py-2 px-4 rounded-lg transition-all duration-200 text-sm"
                 >
                   실시간 검증
-                </a>
-                <a 
+                </Link>
+                <Link 
                   href="/test-couple-connection" 
                   className="block w-full text-center bg-purple-100 hover:bg-purple-200 text-purple-700 py-2 px-4 rounded-lg transition-all duration-200 text-sm"
                 >
                   커플 기능 테스트
-                </a>
+                </Link>
               </div>
             </div>
           </div>

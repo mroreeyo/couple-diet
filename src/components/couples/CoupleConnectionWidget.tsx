@@ -94,21 +94,27 @@ export function CoupleConnectionWidget() {
       const session = await supabase.auth.getSession()
       if (!session.data.session) return
 
+      console.log('🔗 커플 요청 보내기:', { partnerEmail: email })
+      
       const response = await fetch('/api/couples/send-request', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.data.session.access_token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ targetUserEmail: email })
+        body: JSON.stringify({ partnerEmail: email })
       })
 
+      const result = await response.json()
+      console.log('📡 API 응답:', result)
+
       if (response.ok) {
+        setMessage('커플 요청이 성공적으로 전송되었습니다! ✨')
         await fetchCoupleStatus()
         setPartnerEmail('')
       } else {
-        const errorData = await response.json()
-        alert(errorData.message || '요청 실패')
+        console.error('❌ 커플 요청 실패:', result)
+        setError(result.error || result.message || '요청 실패')
       }
     } catch (error) {
       console.error('커플 요청 실패:', error)

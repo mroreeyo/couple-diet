@@ -124,13 +124,22 @@ export async function getMealHistory({
 
     if (includePartner) {
       const { data: userProfile } = await supabase
-        .from('user_profiles')
+        .from('users')
         .select('partner_id')
-        .eq('user_id', userId)
+        .eq('id', userId)
         .single()
+
+      console.log('🔍 [getMealHistory] Partner 정보 조회:', {
+        userId,
+        userProfile,
+        partnerId: userProfile?.partner_id
+      })
 
       if (userProfile?.partner_id) {
         query = query.or(`user_id.eq.${userId},user_id.eq.${userProfile.partner_id}`)
+        console.log('🔍 [getMealHistory] Partner 포함 쿼리 적용')
+      } else {
+        console.log('🔍 [getMealHistory] Partner 연결 안됨 - 본인 데이터만 조회')
       }
     }
 

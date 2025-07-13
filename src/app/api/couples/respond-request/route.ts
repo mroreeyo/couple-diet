@@ -14,26 +14,42 @@ export async function POST(request: NextRequest) {
   logApiRequest('POST', '/api/couples/respond-request', userAgent, ip)
   
   try {
+    console.log('🔗 커플 요청 응답 API 시작')
+    
     // Authorization 헤더에서 토큰 추출
     const authHeader = request.headers.get('authorization')
+    console.log('🔐 Auth Header:', authHeader ? 'Present' : 'Missing')
+    
     const token = extractBearerToken(authHeader || null)
+    console.log('🎫 Token extracted:', token ? 'Success' : 'Failed')
     
     if (!token) {
+      console.log('❌ No token provided')
       return createErrorResponse('인증 토큰이 필요합니다.', 401)
     }
     
     // 요청 본문 파싱
     const body = await request.json()
-    const { action, requestId } = body
+    console.log('📋 Request body:', body)
+    const { action, coupleId, requestId } = body
+    
+    // coupleId와 requestId 둘 다 지원
+    const targetId = coupleId || requestId
     
     // 입력 검증
+    console.log('🔍 Validating inputs - action:', action, 'coupleId:', coupleId, 'requestId:', requestId, 'targetId:', targetId)
+    
     if (!action || !['accept', 'reject'].includes(action)) {
+      console.log('❌ Invalid action:', action)
       return createErrorResponse('action은 "accept" 또는 "reject"이어야 합니다.', 400)
     }
     
-    if (!requestId || typeof requestId !== 'number') {
-      return createErrorResponse('요청 ID가 필요합니다.', 400)
+    if (!targetId) {
+      console.log('❌ Missing coupleId or requestId')
+      return createErrorResponse('커플 ID 또는 요청 ID가 필요합니다.', 400)
     }
+    
+    console.log('✅ Input validation passed')
     
     // Supabase Admin 클라이언트 생성
     const supabase = createSupabaseAdmin()
@@ -62,7 +78,7 @@ export async function POST(request: NextRequest) {
     const { data: requestData, error: requestError } = await supabase
       .from('couples')
       .select('id, user1_id, user2_id, relationship_status, requested_by')
-      .eq('id', requestId)
+      .eq('id', targetId)
       .eq('relationship_status', 'pending')
       .single()
     
@@ -98,18 +114,50 @@ export async function POST(request: NextRequest) {
     let result
     
     if (action === 'accept') {
-      // 요청 수락 (Supabase 함수 사용)
-      const { data: acceptResult, error: acceptError } = await supabase
-        .rpc('accept_couple_request', {
-          p_request_id: requestId
-        })
+      console.log('💕 커플 요청 수락 처리 중...')
       
-      if (acceptError) {
-        logApiError('/api/couples/respond-request', acceptError, { userId: currentUser.id, requestId, action, ip })
+      // 요청을 활성화로 변경
+      const { error: updateError } = await supabase
+        .from('couples')
+        .update({
+          relationship_status: 'active',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', targetId)
+      
+      if (updateError) {
+        console.log('❌ Update couples error:', updateError)
+        logApiError('/api/couples/respond-request', updateError, { userId: currentUser.id, requestId, action, ip })
         return createErrorResponse('커플 요청 수락 중 오류가 발생했습니다.', 500)
       }
       
-      result = acceptResult
+      console.log('✅ Couples table updated to active')
+      
+      // 양쪽 사용자의 partner_id 업데이트
+      const { error: user1Error } = await supabase
+        .from('users')
+        .update({ partner_id: partnerInfo.id })
+        .eq('id', currentUserData.id)
+      
+      if (user1Error) {
+        console.log('❌ Update current user partner_id error:', user1Error)
+        logApiError('/api/couples/respond-request', user1Error, { userId: currentUser.id, requestId, action, ip })
+        return createErrorResponse('사용자 정보 업데이트 중 오류가 발생했습니다.', 500)
+      }
+      
+      const { error: user2Error } = await supabase
+        .from('users')
+        .update({ partner_id: currentUserData.id })
+        .eq('id', partnerInfo.id)
+      
+      if (user2Error) {
+        console.log('❌ Update partner user partner_id error:', user2Error)
+        logApiError('/api/couples/respond-request', user2Error, { userId: currentUser.id, requestId, action, ip })
+        return createErrorResponse('파트너 정보 업데이트 중 오류가 발생했습니다.', 500)
+      }
+      
+      console.log('✅ Both users partner_id updated')
+      result = { success: true }
       
       // 성공 로그
       console.log(`[${new Date().toISOString()}] Couple request accepted:`, {
@@ -127,7 +175,7 @@ export async function POST(request: NextRequest) {
           relationship_status: 'inactive',
           updated_at: new Date().toISOString()
         })
-        .eq('id', requestId)
+        .eq('id', targetId)
       
       if (rejectError) {
         logApiError('/api/couples/respond-request', rejectError, { userId: currentUser.id, requestId, action, ip })
