@@ -2,6 +2,8 @@
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react'
 import { AuthGuard } from '@/components/auth'
+import { useAuth } from '@/contexts/auth-context'
+import { supabase } from '@/lib/supabase'
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -17,7 +19,8 @@ import {
   X,
   Clock,
   Camera,
-  Utensils
+  Utensils,
+  AlertCircle
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -470,7 +473,19 @@ const MealDetailModal = React.memo(function MealDetailModal({
   isOpen: boolean
   onClose: () => void
 }) {
-  if (!isOpen || !detailedData) return null
+  if (!isOpen) return null
+
+  // detailedData가 없으면 기본값 사용
+  const safeDetailedData: DetailedDayMealData = detailedData || {
+    date,
+    userMeals: [],
+    partnerMeals: [],
+    userTotalCalories: 0,
+    partnerTotalCalories: 0,
+    status: 'none',
+    mood: 'good',
+    waterIntake: 8,
+  }
 
   const getMealTypeLabel = (type: string) => {
     switch (type) {
@@ -505,11 +520,11 @@ const MealDetailModal = React.memo(function MealDetailModal({
         <div className="bg-gradient-to-r from-pink-500 to-orange-500 p-6 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold">{detailedData.date} 식단 상세</h2>
+              <h2 className="text-2xl font-bold">{safeDetailedData.date} 식단 상세</h2>
               <p className="text-pink-100 mt-1">
-                오늘의 기분: {getMoodEmoji(detailedData.mood)}
-                {detailedData.waterIntake && ` | 물 ${detailedData.waterIntake}잔`}
-                {detailedData.exercise && ` | ${detailedData.exercise}`}
+                오늘의 기분: {getMoodEmoji(safeDetailedData.mood)}
+                {safeDetailedData.waterIntake && ` | 물 ${safeDetailedData.waterIntake}잔`}
+                {safeDetailedData.exercise && ` | ${safeDetailedData.exercise}`}
               </p>
             </div>
             <button
@@ -533,13 +548,13 @@ const MealDetailModal = React.memo(function MealDetailModal({
                 </div>
                 <h3 className="text-xl font-semibold text-gray-800">내 식단</h3>
                 <span className="text-blue-600 font-medium">
-                  총 {detailedData.userTotalCalories} kcal
+                  총 {safeDetailedData.userTotalCalories} kcal
                 </span>
               </div>
               
-              {detailedData.userMeals.length > 0 ? (
+              {safeDetailedData.userMeals.length > 0 ? (
                 <div className="space-y-3">
-                  {detailedData.userMeals.map((meal) => (
+                  {safeDetailedData.userMeals.map((meal) => (
                     <div key={meal.id} className="bg-blue-50 rounded-lg p-4 hover:bg-blue-100 transition-colors">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
@@ -595,13 +610,13 @@ const MealDetailModal = React.memo(function MealDetailModal({
                 <Heart className="w-8 h-8 text-purple-500" />
                 <h3 className="text-xl font-semibold text-gray-800">파트너 식단</h3>
                 <span className="text-purple-600 font-medium">
-                  총 {detailedData.partnerTotalCalories} kcal
+                  총 {safeDetailedData.partnerTotalCalories} kcal
                 </span>
               </div>
               
-              {detailedData.partnerMeals.length > 0 ? (
+              {safeDetailedData.partnerMeals.length > 0 ? (
                 <div className="space-y-3">
-                  {detailedData.partnerMeals.map((meal) => (
+                  {safeDetailedData.partnerMeals.map((meal) => (
                     <div key={meal.id} className="bg-purple-50 rounded-lg p-4 hover:bg-purple-100 transition-colors">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
@@ -674,6 +689,7 @@ const MealDetailModal = React.memo(function MealDetailModal({
 })
 
 function CalendarContent() {
+  const { user, loading: authLoading } = useAuth()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<DayMealData | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -682,20 +698,213 @@ function CalendarContent() {
     targetCalories: 1800,
     partnerTargetCalories: 2000
   })
+  
+  // API 관련 상태
+  const [monthData, setMonthData] = useState<DayMealData[]>([])
+  const [detailedMonthData, setDetailedMonthData] = useState<{ [key: string]: DetailedDayMealData }>({})
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // 현재 월의 데이터 생성
-  const monthData = useMemo(() => {
-    const year = currentDate.getFullYear()
-    const month = currentDate.getMonth() + 1
-    return generateDemoData(year, month)
-  }, [currentDate])
+  // API에서 월간 데이터 가져오기
+  useEffect(() => {
+    // 사용자 로딩 중이면 대기
+    if (authLoading) {
+      console.log('⏳ 사용자 정보 로딩 중...')
+      return
+    }
+    
+    // 사용자 정보가 없으면 로딩 해제
+    if (!user?.id) {
+      console.log('🔍 사용자 정보 없음, 로딩 해제')
+      setLoading(false)
+      setError('로그인이 필요합니다.')
+      return
+    }
+    
+    // 추가적인 안전 체크: 사용자 객체가 완전히 로드되었는지 확인
+    if (!user.email) {
+      console.log('🔍 사용자 정보 불완전, 잠시 대기...')
+      return
+    }
+    
+    const fetchMonthData = async () => {
+      const year = currentDate.getFullYear()
+      const month = currentDate.getMonth() + 1
+      
+      console.log(`📅 캘린더 데이터 요청 시작: ${year}년 ${month}월`)
+      setLoading(true)
+      setError(null)
+      
+      try {
+        // 잠시 대기하여 인증 상태가 안정되도록 함
+        await new Promise(resolve => setTimeout(resolve, 100))
+        
+        // Supabase 세션에서 토큰 가져오기 (재시도 로직 추가)
+        let session = null
+        let retries = 3
+        
+        while (!session?.access_token && retries > 0) {
+          const { data: { session: currentSession } } = await supabase.auth.getSession()
+          session = currentSession
+          
+          if (!session?.access_token) {
+            console.log(`🔄 토큰 재시도 중... (${4 - retries}/3)`)
+            await new Promise(resolve => setTimeout(resolve, 200))
+            retries--
+          }
+        }
+        
+        if (!session?.access_token) {
+          throw new Error('인증 토큰을 가져올 수 없습니다. 다시 로그인해주세요.')
+        }
+        
+        console.log(`🔑 토큰 확보 완료, API 호출 중...`)
+        
+        const response = await fetch(`/api/meals/history?year=${year}&month=${month}&include_partner=true`, {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+        
+        console.log(`📊 API 응답 상태: ${response.status}`)
+        
+        if (!response.ok) {
+          throw new Error(`API 요청 실패: ${response.status}`)
+        }
+        
+        const result = await response.json()
+        console.log('📋 API 응답 데이터:', result)
+        
+        if (!result.success) {
+          throw new Error(result.error || '식단 데이터 조회 실패')
+        }
+        
+        // API 응답 데이터를 컴포넌트 형식으로 변환
+        const apiData = result.data || {}
+        console.log(`🔄 변환할 원본 데이터:`, Object.keys(apiData).length, '개 날짜')
+        
+        const transformedData = transformApiDataToCalendarFormat(apiData, year, month)
+        const transformedDetailedData = transformApiDataToDetailedFormat(apiData, year, month)
+        
+        console.log(`✅ 변환 완료: ${transformedData.length}개 날짜 데이터`)
+        
+        setMonthData(transformedData)
+        setDetailedMonthData(transformedDetailedData)
+        
+      } catch (err) {
+        console.error('❌ 월간 식단 데이터 조회 오류:', err)
+        const errorMessage = err instanceof Error ? err.message : '데이터를 불러오는데 실패했습니다.'
+        
+        // 인증 관련 오류인 경우 더 명확한 메시지 제공
+        if (errorMessage.includes('토큰') || errorMessage.includes('인증')) {
+          setError('인증에 문제가 있습니다. 페이지를 새로고침하거나 다시 로그인해주세요.')
+        } else {
+          setError(errorMessage)
+        }
+        
+        // 에러 시 빈 데이터로 설정
+        setMonthData([])
+        setDetailedMonthData({})
+      } finally {
+        console.log('🏁 API 호출 완료 (로딩 해제)')
+        setLoading(false)
+      }
+    }
+    
+    fetchMonthData()
+  }, [currentDate, user?.id, authLoading])
 
-  // 상세 데이터 생성
-  const detailedMonthData = useMemo(() => {
-    const year = currentDate.getFullYear()
-    const month = currentDate.getMonth() + 1
-    return generateDetailedDemoData(year, month)
-  }, [currentDate])
+  // API 데이터를 캘린더 형식으로 변환하는 함수
+  const transformApiDataToCalendarFormat = (apiData: any, year: number, month: number): DayMealData[] => {
+    const daysInMonth = new Date(year, month, 0).getDate()
+    const data: DayMealData[] = []
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+      const dayData = apiData[date]
+      
+      if (dayData) {
+        data.push({
+          date,
+          userMeals: dayData.userMeals?.length || 0,
+          partnerMeals: dayData.partnerMeals?.length || 0,
+          userCalories: dayData.userTotalCalories || 0,
+          partnerCalories: dayData.partnerTotalCalories || 0,
+          status: dayData.status || 'none'
+        })
+      } else {
+        data.push({
+          date,
+          userMeals: 0,
+          partnerMeals: 0,
+          userCalories: 0,
+          partnerCalories: 0,
+          status: 'none'
+        })
+      }
+    }
+    
+    return data
+  }
+
+  // API 데이터를 상세 형식으로 변환하는 함수
+  const transformApiDataToDetailedFormat = (apiData: any, year: number, month: number): { [key: string]: DetailedDayMealData } => {
+    const detailedData: { [key: string]: DetailedDayMealData } = {}
+    const daysInMonth = new Date(year, month, 0).getDate()
+    
+    // 모든 날짜에 대해 데이터 생성 (빈 날짜도 포함)
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+      const dayData = apiData[date]
+      
+      if (dayData) {
+        // API 데이터가 있는 경우
+        const userMeals: MealInfo[] = (dayData.userMeals || []).map((meal: any) => ({
+          id: meal.id,
+          type: meal.type || 'lunch',
+          name: meal.name || '식사',
+          calories: meal.calories || 0,
+          time: meal.time || '12:00',
+          ingredients: meal.foods?.map((f: any) => f.name) || []
+        }))
+        
+        const partnerMeals: MealInfo[] = (dayData.partnerMeals || []).map((meal: any) => ({
+          id: meal.id,
+          type: meal.type || 'lunch', 
+          name: meal.name || '식사',
+          calories: meal.calories || 0,
+          time: meal.time || '12:00',
+          ingredients: meal.foods?.map((f: any) => f.name) || []
+        }))
+        
+        detailedData[date] = {
+          date,
+          userMeals,
+          partnerMeals,
+          userTotalCalories: dayData.userTotalCalories || 0,
+          partnerTotalCalories: dayData.partnerTotalCalories || 0,
+          status: dayData.status || 'none',
+          mood: 'good',
+          waterIntake: 8,
+        }
+      } else {
+        // API 데이터가 없는 경우 빈 데이터 생성
+        detailedData[date] = {
+          date,
+          userMeals: [],
+          partnerMeals: [],
+          userTotalCalories: 0,
+          partnerTotalCalories: 0,
+          status: 'none',
+          mood: 'good',
+          waterIntake: 8,
+        }
+      }
+    }
+    
+    return detailedData
+  }
 
   // 월 통계 계산
   const monthStats = useMemo(() => {
@@ -882,11 +1091,51 @@ function CalendarContent() {
 
       <div className="p-6">
         <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {/* 캘린더 메인 영역 */}
-            <div className="lg:col-span-3">
-              {/* 월 통계 */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          {/* 로딩 상태 */}
+          {loading && (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500 mr-3"></div>
+              <span className="text-gray-600">식단 데이터를 불러오는 중...</span>
+            </div>
+          )}
+
+          {/* 에러 상태 */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-6 mb-6">
+              <div className="flex items-center space-x-3">
+                <AlertCircle className="w-6 h-6 text-red-500 flex-shrink-0" />
+                <div>
+                  <h3 className="text-red-800 font-semibold">
+                    {error === '로그인이 필요합니다.' ? '로그인 필요' : '데이터 로딩 오류'}
+                  </h3>
+                  <p className="text-red-600 mt-1">{error}</p>
+                  {error === '로그인이 필요합니다.' ? (
+                    <Link
+                      href="/login"
+                      className="mt-3 inline-block px-4 py-2 bg-pink-500 hover:bg-pink-600 text-white rounded-lg transition-colors"
+                    >
+                      로그인하기
+                    </Link>
+                  ) : (
+                    <button
+                      onClick={() => window.location.reload()}
+                      className="mt-3 px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors"
+                    >
+                      새로고침
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 정상 데이터 렌더링 */}
+          {!loading && !error && (
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+              {/* 캘린더 메인 영역 */}
+              <div className="lg:col-span-3">
+                {/* 월 통계 */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                 <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-lg border border-gray-200/50 p-4 transition-all duration-300 hover:shadow-xl hover:scale-105">
                   <div className="flex items-center justify-between">
                     <div>
@@ -1046,6 +1295,7 @@ function CalendarContent() {
               </div>
             </div>
           </div>
+          )}
         </div>
       </div>
     </div>
